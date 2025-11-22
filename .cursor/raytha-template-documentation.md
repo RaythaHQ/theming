@@ -20,6 +20,26 @@ Use this as a reference when generating or editing Raytha templates.
 
 ---
 
+## 2.5 Available field types
+
+Raytha supports the following field types (developer names):
+
+| Field Type              | Developer Name            | Notes                                      |
+|-------------------------|---------------------------|--------------------------------------------|
+| Single Line Text        | `single_line_text`        | Short text input                           |
+| Long Text               | `long_text`               | Multi-line text input                      |
+| WYSIWYG                 | `wysiwyg`                 | Rich text editor                           |
+| Dropdown                | `dropdown`                | Single-select with choices                 |
+| Radio Buttons           | `radio`                   | Single-select with choices                 |
+| Multiple Select         | `multiple_select`         | Multi-select with choices                  |
+| Checkbox                | `checkbox`                | Boolean (true/false)                       |
+| Date                    | `date`                    | Date picker                                |
+| Number                  | `number`                  | Numeric input                              |
+| Attachment              | `attachment`              | File upload                                |
+| One-to-One Relationship | `one_to_one_relationship` | Relates to another content item            |
+
+---
+
 ## 3. Parent / child templates
 
 - Templates can **inherit** from a parent template.
@@ -227,16 +247,43 @@ Fields on `Target.PublishedContent.<fieldName>` usually expose:
 - `.Text`  
 - `.Value`
 
-Behavior:
+Behavior by field type:
 
-- Checkbox:
-  - `.Value`: Liquid boolean (`true`/`false`)
-  - `.Text`: `"true"` / `"false"` string
-- Multi-select:
-  - `.Value`: array
-  - `.Text`: string of joined values
+| Field Type       | `.Text`                                    | `.Value`                                |
+|------------------|--------------------------------------------|-----------------------------------------|
+| Checkbox         | `"true"` or `"false"` (string)             | `true` or `false` (boolean)             |
+| Dropdown         | Choice **label** (e.g., "Getting Started") | Choice **developer name** (e.g., "getting_started") |
+| Radio            | Choice **label** (e.g., "Beginner")        | Choice **developer name** (e.g., "beginner") |
+| Multiple Select  | Comma-separated labels (string)            | Array of developer names                |
+| Single Line Text | Text value                                 | Text value (same as .Text)              |
+| Long Text        | Text value                                 | Text value (same as .Text)              |
+| WYSIWYG          | HTML content                               | HTML content (same as .Text)            |
+| Number           | String representation                      | Numeric value                           |
+| Date             | Formatted date string                      | DateTime object                         |
+| Attachment       | Attachment key                             | Attachment key (same as .Text)          |
 
-Pick `.Value` when you want proper typed logic; `.Text` when you want user-facing display text.
+**Critical for filtering:**
+
+- When filtering on **dropdown**, **radio**, or **multiple_select** fields, you MUST use the **developer name** (`.Value`), NOT the label (`.Text`)!
+
+Examples:
+
+```liquid
+{% comment %} ❌ WRONG - using the label {% endcomment %}
+<a href="/articles?filter=category eq 'Getting Started'">  {% comment %} Won't work! {% endcomment %}
+
+{% comment %} ✅ CORRECT - using the developer name {% endcomment %}
+<a href="/articles?filter=category eq 'getting_started'">  {% comment %} Works! {% endcomment %}
+
+{% comment %} Dynamic filter using .Value (developer name) but displaying .Text (label) {% endcomment %}
+<a href="{{ PathBase }}/articles?filter=category eq '{{ item.PublishedContent.category.Value }}'">
+  More in {{ item.PublishedContent.category.Text }}
+</a>
+```
+
+**General rule:**
+- Use `.Value` for logic, filtering, and comparisons
+- Use `.Text` for display to users
 
 ### 7.2 One-to-one relationships
 
@@ -321,42 +368,65 @@ You can **disable** client-side filter/sort by checking:
 
 ### 8.2 `filter` query parameter
 
-Examples (for `/blog`):
+**CRITICAL RULES:**
+
+1. For filtering on public list views, you MUST use the `filter` parameter with OData syntax
+2. You CANNOT use simple query parameters like `?category=value`
+3. For dropdown/radio/multiple_select fields, you MUST use the **choice's developer name**, NOT its label
+
+**❌ WRONG - Simple query parameters (will NOT work):**
+```
+/articles?category=Billing
+/articles?difficulty=Beginner
+```
+
+**❌ WRONG - Using choice labels instead of developer names:**
+```
+/articles?filter=category eq 'Getting Started'  ← Label, won't work!
+/articles?filter=category eq 'API & Development'  ← Label, won't work!
+/articles?filter=difficulty eq 'Beginner'  ← Label, won't work!
+```
+
+**✅ CORRECT - OData filter with developer names:**
+```
+/articles?filter=category eq 'getting_started'  ← Developer name, works!
+/articles?filter=category eq 'api_development'  ← Developer name, works!
+/articles?filter=difficulty eq 'beginner'  ← Developer name, works!
+```
+
+**More examples:**
 
 - Filter by primary field:
-
   ```
   /blog?filter=PrimaryField eq 'Release of v1.0.4'
   ```
 
 - Filter by creation time:
-
   ```
   /blog?filter=CreationTime lt '3/1/2023'
   ```
 
 - Combine conditions:
-
   ```
   /blog?filter=CreationTime lt '3/1/2023' and youtube_video ne ''
   ```
 
 - Use parentheses / nested conditions:
-
   ```
-  /blog?filter=(
-      (CreationTime lt '3/1/2023' and youtube_video ne '')
-      or hide_author_bio eq 'true'
-  )
+  /blog?filter=(CreationTime lt '3/1/2023' and youtube_video ne '') or hide_author_bio eq 'true'
   ```
 
-- Use `contains`:
-
+- Use `contains` for partial matches:
   ```
   /blog?filter=contains(title, 'open source')
   ```
 
-You can filter on:
+- Filter on multiple values (OR condition):
+  ```
+  /articles?filter=category eq 'Billing' or category eq 'Integrations'
+  ```
+
+**You can filter on:**
 
 - System fields:
   - `PrimaryField`
@@ -364,14 +434,45 @@ You can filter on:
   - `LastModificationTime`
   - `IsPublished`
   - `IsDraft`
-- Any content field by developer name.
+- Any content field by developer name (e.g., `category`, `difficulty`, `author`, etc.)
 
-Supported operators:
+**Supported operators:**
 
 - Logical: `and`, `or`
-- Comparison: `eq`, `ne`, `lt`, `lte`, `gt`, `gte`
+- Comparison: `eq` (equals), `ne` (not equal), `lt` (less than), `lte` (less than or equal), `gt` (greater than), `gte` (greater than or equal)
 - Functions: `contains(field, '...')`, `startswith(field, '...')`, `endswith(field, '...')`
 - `null` checks: e.g. `category ne null`
+
+**Common filter link patterns in Liquid templates:**
+
+```liquid
+{% comment %} ❌ WRONG - Using choice labels {% endcomment %}
+<a href="{{ PathBase }}/articles?filter=category eq 'Getting Started'">Getting Started</a>
+<a href="{{ PathBase }}/articles?filter=difficulty eq 'Beginner'">Beginner</a>
+
+{% comment %} ✅ CORRECT - Using choice developer names (hardcoded) {% endcomment %}
+<a href="{{ PathBase }}/articles?filter=category eq 'getting_started'">Getting Started</a>
+<a href="{{ PathBase }}/articles?filter=difficulty eq 'beginner'">Beginner</a>
+
+{% comment %} ✅ CORRECT - Dynamic filter using .Value (developer name) {% endcomment %}
+<a href="{{ PathBase }}/articles?filter=category eq '{{ Target.PublishedContent.category.Value }}'">
+  More in {{ Target.PublishedContent.category.Text }}
+</a>
+
+{% comment %} ✅ CORRECT - Multiple conditions with developer names {% endcomment %}
+<a href="{{ PathBase }}/articles?filter=category eq 'billing' and difficulty eq 'beginner'">
+  Beginner Billing Articles
+</a>
+
+{% comment %} ✅ CORRECT - Filtering on text fields uses actual text values {% endcomment %}
+<a href="{{ PathBase }}/blog?filter=contains(title, 'API')">API Posts</a>
+<a href="{{ PathBase }}/users?filter=email eq 'user@example.com'">Find User</a>
+```
+
+**Key distinction:**
+- **Choice fields (dropdown/radio/multiple_select)**: Use developer name from `.Value`
+- **Text fields (single_line_text/long_text/wysiwyg)**: Use actual text content
+- **Number/Date fields**: Use the appropriate value format
 
 ### 8.3 `orderby` query parameter
 
@@ -407,12 +508,66 @@ Examples:
 
 - List view search in admin is based on the columns selected for the view.
 - Public side uses the same search across those columns.
+- Use simple HTML forms with GET method - no JavaScript required!
 
-Example:
+**URL example:**
 
-- `/blog?search=release`
+```
+/blog?search=release
+/articles?search=api authentication
+```
 
-> If you need to search columns not included in the view, use a custom `filter` with `contains()` instead of `search`.
+**Recommended implementation pattern - Simple HTML form:**
+
+```liquid
+{% comment %} Search form on home page - directs to list view {% endcomment %}
+<form action="{{ PathBase }}/articles" method="get">
+  <input 
+    type="search" 
+    name="search"
+    placeholder="Search for articles..."
+    aria-label="Search"
+  >
+  <button type="submit">Search</button>
+</form>
+
+{% comment %} Search form on list view page - stays on same page {% endcomment %}
+<form action="{{ PathBase }}/{{ ContentType.DeveloperName }}" method="get">
+  <input 
+    type="search" 
+    name="search"
+    placeholder="Search..."
+    aria-label="Search"
+    value="{{ QueryParams['search'] }}"
+  >
+  <button type="submit">Search</button>
+</form>
+```
+
+**Key points:**
+
+1. **Use `method="get"`** - This creates URL query parameters automatically
+2. **Use `name="search"`** - Raytha looks for this parameter name
+3. **Use `type="search"`** - Better semantics than `type="text"`
+4. **Preserve search term** - On list pages, use `value="{{ QueryParams['search'] }}"` to show the current search
+5. **No JavaScript needed** - Form submission handles everything
+
+**Alternative: Search without submit button**
+
+If you prefer search to submit on Enter key press only (no button):
+
+```liquid
+<form action="{{ PathBase }}/articles" method="get">
+  <input 
+    type="search" 
+    name="search"
+    placeholder="Search for articles..."
+    aria-label="Search"
+  >
+</form>
+```
+
+> **Note:** If you need to search columns not included in the view configuration, use a custom `filter` with `contains()` instead of `search`. Example: `?filter=contains(title, 'term') or contains(summary, 'term')`
 
 ---
 
@@ -438,21 +593,34 @@ Example:
 ### 9.2 `get_content_items(ContentType='developer_name', Filter='odata', OrderBy='odata', PageNumber=1, PageSize=25)`
 
 - Returns items for a specific content type.
-- Parameters:
-  - `ContentType` (required): developer name of content type.
-  - `Filter` (optional): OData filter string.
-  - `OrderBy` (optional): OData style order by string.
-  - `PageNumber` (optional): default 1.
-  - `PageSize` (optional): default 25.
+- **IMPORTANT**: Returns an object with `.Items` (array) and `.TotalCount`, not a direct array!
+- Parameters (use named parameter syntax with single quotes):
+  - `ContentType='name'` (required): developer name of content type.
+  - `Filter='odata'` (optional): OData filter string.
+  - `OrderBy='field desc'` (optional): OData style order by string.
+  - `PageNumber=1` (optional): default 1.
+  - `PageSize=25` (optional): default 25.
 
-Example (table of contents):
+**Correct syntax examples:**
 
 ```liquid
+{% comment %} Simple example - get 6 most recent articles {% endcomment %}
+{% assign articles = get_content_items(ContentType='articles', OrderBy='CreationTime desc', PageSize=6) %}
+
+{% if articles.TotalCount > 0 %}
+    {% for item in articles.Items %}
+        {{ item.PrimaryField }}
+    {% endfor %}
+{% endif %}
+```
+
+```liquid
+{% comment %} Complex example with filter {% endcomment %}
 {% assign filter = "contains(user_guide,'" | append: Target.PrimaryField | append: "')" %}
 {% assign items = get_content_items(
     ContentType='posts',
     Filter=filter,
-    OrderBy="order_to_appear_in_user_guide asc",
+    OrderBy='order_to_appear_in_user_guide asc',
     PageSize=25
 ) %}
 
@@ -469,6 +637,30 @@ Example (table of contents):
             {% endfor %}
         </ol>
     </div>
+{% endif %}
+```
+
+**Common mistakes to avoid:**
+
+```liquid
+{% comment %} ❌ WRONG - using Ruby-style colon syntax {% endcomment %}
+{% assign items = get_content_items_by: "articles", "limit", 6 %}
+
+{% comment %} ❌ WRONG - function name doesn't exist {% endcomment %}
+{% assign items = get_content_items_by("articles") %}
+
+{% comment %} ❌ WRONG - iterating result directly instead of .Items {% endcomment %}
+{% for item in items %}  {% comment %} Should be: items.Items {% endcomment %}
+
+{% comment %} ❌ WRONG - checking .size instead of .TotalCount {% endcomment %}
+{% if items.size > 0 %}  {% comment %} Should be: items.TotalCount {% endcomment %}
+
+{% comment %} ✅ CORRECT - proper named parameters and iteration {% endcomment %}
+{% assign items = get_content_items(ContentType='articles', PageSize=6) %}
+{% if items.TotalCount > 0 %}
+    {% for item in items.Items %}
+        {{ item.PrimaryField }}
+    {% endfor %}
 {% endif %}
 ```
 
@@ -636,3 +828,164 @@ When generating Raytha templates:
 7. Use `attachment_redirect_url` by default for secured files; `attachment_public_url` only when storage is publicly readable.
 8. Use `organization_time` when showing times that should respect the org timezone.
 9. Use `json` during development to inspect objects, then remove it in final templates.
+
+---
+
+## 12. Common Mistakes to Avoid
+
+### 12.1 Filtering mistakes
+
+❌ **WRONG - Using simple query parameters:**
+```liquid
+<a href="/articles?category=billing">Billing Articles</a>
+<a href="/articles?difficulty=beginner">Beginner Articles</a>
+```
+
+❌ **WRONG - Using OData but with choice labels instead of developer names:**
+```liquid
+<a href="/articles?filter=category eq 'Billing'">Billing</a>
+<a href="/articles?filter=category eq 'Getting Started'">Getting Started</a>
+<a href="/articles?filter=difficulty eq 'Beginner'">Beginner</a>
+```
+
+❌ **WRONG - Using .Text (label) instead of .Value (developer name) in dynamic filters:**
+```liquid
+<a href="/articles?filter=category eq '{{ item.PublishedContent.category.Text }}'">
+  {% comment %} .Text gives "Getting Started", but filter needs "getting_started" {% endcomment %}
+</a>
+```
+
+✅ **CORRECT - Using OData filter with choice developer names:**
+```liquid
+<a href="/articles?filter=category eq 'billing'">Billing Articles</a>
+<a href="/articles?filter=category eq 'getting_started'">Getting Started</a>
+<a href="/articles?filter=difficulty eq 'beginner'">Beginner Articles</a>
+```
+
+✅ **CORRECT - Using .Value (developer name) for dynamic filters:**
+```liquid
+<a href="/articles?filter=category eq '{{ item.PublishedContent.category.Value }}'">
+  More {{ item.PublishedContent.category.Text }} Articles
+</a>
+```
+
+### 12.2 Function call mistakes
+
+❌ **WRONG - Incorrect function name or syntax:**
+```liquid
+{% assign items = get_content_items_by: "articles", "limit", 6 %}
+{% assign items = get_items("articles") %}
+```
+
+✅ **CORRECT - Proper named parameters:**
+```liquid
+{% assign items = get_content_items(ContentType='articles', PageSize=6) %}
+```
+
+### 12.3 Iteration mistakes
+
+❌ **WRONG - Iterating function result directly:**
+```liquid
+{% assign items = get_content_items(ContentType='articles') %}
+{% for item in items %}  {% comment %} items is an object, not array! {% endcomment %}
+```
+
+✅ **CORRECT - Iterate .Items property:**
+```liquid
+{% assign items = get_content_items(ContentType='articles') %}
+{% for item in items.Items %}  {% comment %} Correct! {% endcomment %}
+```
+
+### 12.4 Property check mistakes
+
+❌ **WRONG - Using wrong property names:**
+```liquid
+{% if items.size > 0 %}  {% comment %} Should be .TotalCount {% endcomment %}
+{% if items.length > 0 %}  {% comment %} Should be .TotalCount {% endcomment %}
+```
+
+✅ **CORRECT - Using proper property:**
+```liquid
+{% if items.TotalCount > 0 %}
+```
+
+### 12.5 Date formatting mistakes
+
+❌ **WRONG - Using date filter without organization_time:**
+```liquid
+{{ item.CreationTime | date: "%B %d, %Y" }}  {% comment %} Ignores org timezone! {% endcomment %}
+```
+
+✅ **CORRECT - Convert to org timezone first:**
+```liquid
+{{ item.CreationTime | organization_time: "%B %d, %Y" }}
+```
+
+### 12.6 URL construction mistakes
+
+❌ **WRONG - Hardcoded URLs without PathBase:**
+```liquid
+<a href="/articles">Articles</a>
+<a href="/{{ item.RoutePath }}">Link</a>
+```
+
+✅ **CORRECT - Always include PathBase:**
+```liquid
+<a href="{{ PathBase }}/articles">Articles</a>
+<a href="{{ PathBase }}/{{ item.RoutePath }}">Link</a>
+```
+
+### 12.7 Pagination URL mistakes
+
+❌ **WRONG - Not preserving filter in pagination:**
+```liquid
+<a href="{{ PathBase }}/articles?pageNumber={{ Target.PageNumber | plus: 1 }}">Next</a>
+```
+This loses any active filters when user clicks pagination!
+
+✅ **CORRECT - Use Target.RoutePath which preserves filters:**
+```liquid
+<a href="{{ PathBase }}/{{ Target.RoutePath }}?pageNumber={{ Target.PageNumber | plus: 1 }}">Next</a>
+```
+
+### 12.8 Search implementation mistakes
+
+❌ **WRONG - Using JavaScript when HTML forms work:**
+```liquid
+<input type="text" id="search" onkeyup="handleSearch()">
+<script>
+  function handleSearch() { /* complex JS */ }
+</script>
+```
+
+❌ **WRONG - Using POST method for search:**
+```liquid
+<form action="{{ PathBase }}/articles" method="post">
+  {% comment %} POST doesn't create URL parameters! {% endcomment %}
+```
+
+❌ **WRONG - Wrong parameter name:**
+```liquid
+<form action="{{ PathBase }}/articles" method="get">
+  <input type="search" name="query">  {% comment %} Should be "search" not "query" {% endcomment %}
+</form>
+```
+
+✅ **CORRECT - Simple HTML form with GET method:**
+```liquid
+<form action="{{ PathBase }}/articles" method="get">
+  <input type="search" name="search" placeholder="Search...">
+</form>
+```
+
+✅ **CORRECT - Preserve search term on list page:**
+```liquid
+<form action="{{ PathBase }}/{{ ContentType.DeveloperName }}" method="get">
+  <input 
+    type="search" 
+    name="search"
+    value="{{ QueryParams['search'] }}"
+    placeholder="Search..."
+  >
+</form>
+```
