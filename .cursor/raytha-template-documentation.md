@@ -1,0 +1,638 @@
+# Raytha Template Instructions (for Cursor)
+
+Use this as a reference when generating or editing Raytha templates.
+
+---
+
+## 1. Templating engine
+
+- Raytha templates use **Liquid** syntax rendered via the **.NET Fluid** library.
+- For general Liquid behavior / filters, refer to Shopify’s Liquid docs.
+- Raytha adds its own objects, functions, and filters on top.
+
+---
+
+## 2. Template storage & editing
+
+- Templates are stored in the **database**.
+- Manage them in **Admin → Templates**.
+- There is a default parent layout template named **`_Layout`**.
+
+---
+
+## 3. Parent / child templates
+
+- Templates can **inherit** from a parent template.
+- A template can itself be a **parent**.
+
+Rules:
+
+- A **parent template must include**:
+
+  ```liquid
+  {% renderbody %}
+  ```
+
+  This is where the child template’s content will be rendered. If it is missing on a parent, Raytha will throw an error.
+
+- Template inheritance is limited to **5 levels deep**.
+- When creating a template:
+  - Select a parent layout (usually `_Layout`) if appropriate.
+  - Mark as “parent” only if it is meant to be inherited from.
+  - Never forget `{% renderbody %}` in parents.
+
+---
+
+## 4. Core variables
+
+Raytha exposes a number of variables in the template context.
+
+### 4.1 Common top-level variables
+
+| Variable                               | Type      | Notes / Example                                      |
+|----------------------------------------|-----------|------------------------------------------------------|
+| `QueryParams`                          | Key-Value | `{{ QueryParams["yourParam"] }}`                     |
+| `PathBase`                             | String    | Base path if site is hosted at a route (e.g. `/app`) |
+| `CurrentUser.IsAuthenticated`          | Boolean   |                                                      |
+| `CurrentUser.IsAdmin`                  | Boolean   |                                                      |
+| `CurrentUser.Roles`                    | Array     |                                                      |
+| `CurrentUser.UserGroups`               | Array     |                                                      |
+| `CurrentUser.LastModificationTime`     | Date      |                                                      |
+| `CurrentUser.UserId`                   | String    |                                                      |
+| `CurrentUser.FirstName`                | String    |                                                      |
+| `CurrentUser.LastName`                 | String    |                                                      |
+| `CurrentUser.EmailAddress`             | String    |                                                      |
+| `CurrentOrganization.OrganizationName` | String    |                                                      |
+| `ContentType.LabelPlural`              | String    | Human-readable plural name                           |
+| `ContentType.LabelSingular`            | String    | Human-readable singular name                         |
+| `ContentType.DeveloperName`            | String    | Developer name of the content type                   |
+| `ContentType.Description`              | String    |                                                      |
+| `Target`                               | Object    | Main view context (list or detail)                   |
+| `Target.Items`                         | Array     | Items in list views                                  |
+
+---
+
+## 5. `Target` and view types
+
+Every public Raytha page is either:
+
+- A **list view** of a content type, or  
+- A **detail view** of a single content item.
+
+`Target` behavior:
+
+- **List view:**
+  - `Target` is a list context object.
+  - `Target.Items` is an array of content items.
+- **Detail view:**
+  - `Target` is the content item itself.
+
+---
+
+## 6. List views
+
+A list view (per content type) allows you to:
+
+- Publish / unpublish the view.
+- Optionally set it as the **home page**.
+- Configure:
+  - Route path, e.g. `/posts`
+  - Base filter (OData)
+  - Sort order
+  - Default pagination
+  - Which columns show & are searchable
+  - Which **template** is used to render it
+
+You can have multiple list views per content type; each can have its own template and route.
+
+### 6.1 Looping over `Target.Items`
+
+Typical pattern for rendering items:
+
+```liquid
+{% for item in Target.Items %}
+    <div class="ud-single-blog">
+        <div class="ud-blog-content">
+            <span class="ud-blog-date">
+                {{ item.CreationTime | date: "%b %d, %Y" }}
+            </span>
+
+            <h2 class="ud-blog-title">
+                <a href="/{{ item.RoutePath }}">
+                    {{ item.PrimaryField }}
+                </a>
+            </h2>
+
+            {% if item.PublishedContent.content %}
+                <div class="ud-blog-desc">
+                    {{ item.PublishedContent.content | strip_html | truncate: 280, "..." }}
+                    <a href="/{{ item.RoutePath }}">read more</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% unless forloop.last %}
+        <hr/>
+    {% endunless %}
+{% endfor %}
+```
+
+Common item properties:
+
+- `item.PrimaryField`
+- `item.RoutePath`
+- `item.CreationTime`
+- `item.PublishedContent.<fieldDeveloperName>`
+
+### 6.2 Pagination UI
+
+Raytha exposes pagination info on `Target`:
+
+- `Target.TotalCount`
+- `Target.RoutePath`
+- `Target.PageNumber`
+- `Target.TotalPages`
+- `Target.FirstVisiblePageNumber`
+- `Target.LastVisiblePageNumber`
+- `Target.PreviousDisabledCss`
+- `Target.NextDisabledCss`
+
+Example pagination snippet:
+
+```liquid
+<nav aria-label="page navigation" class="py-4">
+    {% if Target.TotalCount == 1 %}
+        <p>{{ Target.TotalCount }} result</p>
+    {% else %}
+        <p>{{ Target.TotalCount }} results</p>
+    {% endif %}
+
+    <ul class="pagination">
+        <li class="page-item {% if Target.PreviousDisabledCss %}disabled{% endif %}">
+            <a href="/{{ Target.RoutePath }}?pageNumber={{ Target.PageNumber | minus: 1 }}" class="page-link">
+                «
+            </a>
+        </li>
+
+        {% if Target.FirstVisiblePageNumber > 1 %}
+            <li class="page-item disabled">
+                <a class="page-link">...</a>
+            </li>
+        {% endif %}
+
+        {% for i in (Target.FirstVisiblePageNumber..Target.LastVisiblePageNumber) %}
+            <li class="page-item {% if Target.PageNumber == i %}active{% endif %}">
+                <a href="/{{ Target.RoutePath }}?pageNumber={{ i }}" class="page-link">
+                    {{ i }}
+                </a>
+            </li>
+        {% endfor %}
+
+        {% if Target.LastVisiblePageNumber < Target.TotalPages %}
+            <li class="page-item disabled">
+                <a class="page-link">...</a>
+            </li>
+        {% endif %}
+
+        <li class="page-item {% if Target.NextDisabledCss %}disabled{% endif %}">
+            <a href="/{{ Target.RoutePath }}?pageNumber={{ Target.PageNumber | plus: 1 }}" class="page-link">
+                »
+            </a>
+        </li>
+    </ul>
+</nav>
+```
+
+---
+
+## 7. Detail views
+
+A **detail view** is tied to a single content item.
+
+- You can choose which **detail template** a content item uses from the content item’s settings.
+- In a detail view, `Target` is that content item.
+
+Common usage:
+
+- `Target.PrimaryField`
+- `Target.RoutePath`
+- `Target.PublishedContent.<field>.Text`
+- `Target.PublishedContent.<field>.Value`
+
+### 7.1 `.Text` vs `.Value` on fields
+
+Fields on `Target.PublishedContent.<fieldName>` usually expose:
+
+- `.Text`  
+- `.Value`
+
+Behavior:
+
+- Checkbox:
+  - `.Value`: Liquid boolean (`true`/`false`)
+  - `.Text`: `"true"` / `"false"` string
+- Multi-select:
+  - `.Value`: array
+  - `.Text`: string of joined values
+
+Pick `.Value` when you want proper typed logic; `.Text` when you want user-facing display text.
+
+### 7.2 One-to-one relationships
+
+Given a one-to-one field `author_1` pointing to an `Author` content type:
+
+- `{{ Target.PublishedContent.author_1 }}`  
+  Outputs the **primary field** of the related author.
+
+To access nested fields:
+
+```liquid
+{{ Target.PublishedContent.author_1.PublishedContent.twitter_handle.Text }}
+{{ Target.PublishedContent.author_1.RoutePath }}
+```
+
+More complete example:
+
+```liquid
+{% if Target.PublishedContent.hide_author_bio.Value == false %}
+    <hr/>
+    <div class="card mb-3" style="max-width: 100%;">
+        <div class="row g-0">
+            <div class="col-md-4">
+                <img
+                    src="{{ Target.PublishedContent.author_1.PublishedContent.profile_pic.Value | attachment_redirect_url }}"
+                    class="img-fluid rounded-start"
+                    alt="picture of the author"
+                />
+            </div>
+
+            <div class="col-md-8">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        {{ Target.PublishedContent.author_1 }}
+                        {% if Target.PublishedContent.author_1.PublishedContent.twitter_handle.Text %}
+                            <span>
+                                <a
+                                    href="https://twitter.com/{{ Target.PublishedContent.author_1.PublishedContent.twitter_handle.Text }}"
+                                    target="_blank"
+                                >
+                                    @{{ Target.PublishedContent.author_1.PublishedContent.twitter_handle.Text }}
+                                </a>
+                            </span>
+                        {% endif %}
+                    </h5>
+
+                    <p class="card-text">
+                        {{ Target.PublishedContent.author_1.PublishedContent.bio.Text }}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endif %}
+```
+
+> Limitation: nested related content only goes **1 level deep**. For deeper pulls, use the custom functions described below.
+
+---
+
+## 8. OData usage in templates (public list views)
+
+Raytha uses **OData-style** query parameters on public list views to allow:
+
+- Additional filtering on top of the base filter
+- Sorting
+- Pagination
+- Search
+
+These operate on the public route of a **list view**, e.g. `/blog`.
+
+### 8.1 Admin-configured base filter
+
+- When you create/edit a list view in the admin portal, Raytha stores an OData filter query internally.
+- On public requests, Raytha:
+  1. Applies the base filter configured in the view.
+  2. Optionally merges additional filters from the **query string**.
+
+You can **disable** client-side filter/sort by checking:
+
+- `Ignore client side filter and sort query parameters`
+
+### 8.2 `filter` query parameter
+
+Examples (for `/blog`):
+
+- Filter by primary field:
+
+  ```
+  /blog?filter=PrimaryField eq 'Release of v1.0.4'
+  ```
+
+- Filter by creation time:
+
+  ```
+  /blog?filter=CreationTime lt '3/1/2023'
+  ```
+
+- Combine conditions:
+
+  ```
+  /blog?filter=CreationTime lt '3/1/2023' and youtube_video ne ''
+  ```
+
+- Use parentheses / nested conditions:
+
+  ```
+  /blog?filter=(
+      (CreationTime lt '3/1/2023' and youtube_video ne '')
+      or hide_author_bio eq 'true'
+  )
+  ```
+
+- Use `contains`:
+
+  ```
+  /blog?filter=contains(title, 'open source')
+  ```
+
+You can filter on:
+
+- System fields:
+  - `PrimaryField`
+  - `CreationTime`
+  - `LastModificationTime`
+  - `IsPublished`
+  - `IsDraft`
+- Any content field by developer name.
+
+Supported operators:
+
+- Logical: `and`, `or`
+- Comparison: `eq`, `ne`, `lt`, `lte`, `gt`, `gte`
+- Functions: `contains(field, '...')`, `startswith(field, '...')`, `endswith(field, '...')`
+- `null` checks: e.g. `category ne null`
+
+### 8.3 `orderby` query parameter
+
+Use the `orderby` parameter to change sort order:
+
+- Single field:
+
+  ```
+  /blog?orderby=title asc
+  ```
+
+- Multiple fields:
+
+  ```
+  /blog?orderby=youtube_video desc,CreationTime asc
+  ```
+
+This overrides the sort configured in the admin view.
+
+### 8.4 Pagination: `pageSize` & `pageNumber`
+
+Use:
+
+- `pageSize`
+- `pageNumber`
+
+Examples:
+
+- `/blog?pageSize=1&pageNumber=2`
+- `/blog?pageSize=5`
+
+### 8.5 Search: `search` parameter
+
+- List view search in admin is based on the columns selected for the view.
+- Public side uses the same search across those columns.
+
+Example:
+
+- `/blog?search=release`
+
+> If you need to search columns not included in the view, use a custom `filter` with `contains()` instead of `search`.
+
+---
+
+## 9. Custom functions (Liquid functions)
+
+> Every function call hits the database. Heavy use in a single template can impact performance.
+
+### 9.1 `get_content_item_by_id(contentItemId)`
+
+- Returns a single content item by its **id**.
+
+Example:
+
+```liquid
+{% assign other_related_item = get_content_item_by_id(Target.PublishedContent.related_item.Value) %}
+
+{% if other_related_item %}
+    <h3>Related: {{ other_related_item.PrimaryField }}</h3>
+    <p>{{ other_related_item.PublishedContent.summary.Text }}</p>
+{% endif %}
+```
+
+### 9.2 `get_content_items(ContentType='developer_name', Filter='odata', OrderBy='odata', PageNumber=1, PageSize=25)`
+
+- Returns items for a specific content type.
+- Parameters:
+  - `ContentType` (required): developer name of content type.
+  - `Filter` (optional): OData filter string.
+  - `OrderBy` (optional): OData style order by string.
+  - `PageNumber` (optional): default 1.
+  - `PageSize` (optional): default 25.
+
+Example (table of contents):
+
+```liquid
+{% assign filter = "contains(user_guide,'" | append: Target.PrimaryField | append: "')" %}
+{% assign items = get_content_items(
+    ContentType='posts',
+    Filter=filter,
+    OrderBy="order_to_appear_in_user_guide asc",
+    PageSize=25
+) %}
+
+{% if items.TotalCount > 0 %}
+    <div id="articles">
+        <h2>Table of Contents</h2>
+        <ol>
+            {% for item in items.Items %}
+                <li>
+                    <a href="{{ PathBase }}/{{ item.RoutePath }}" target="_blank">
+                        {{ item.PrimaryField }}
+                    </a>
+                </li>
+            {% endfor %}
+        </ol>
+    </div>
+{% endif %}
+```
+
+### 9.3 `get_content_type_by_developer_name(contentTypeDeveloperName)`
+
+- Retrieves content type metadata including field definitions.
+
+Example:
+
+```liquid
+{% assign contentType = get_content_type_by_developer_name('posts') %}
+{% assign categoriesField = contentType.ContentTypeFields | where: "DeveloperName", "categories" | first %}
+
+{% for choice in categoriesField.Choices %}
+    <a href="{{ PathBase }}/{{ choice.DeveloperName }}">
+        {{ choice.Label }}
+    </a>
+{% endfor %}
+```
+
+### 9.4 `get_main_menu()` and `get_menu('developerName')`
+
+- `get_main_menu()` returns the navigation menu marked as default.
+- `get_menu('developerName')` returns a named menu.
+
+Example:
+
+```liquid
+{% assign menu = get_main_menu() %}
+
+<ul class="navbar-nav me-auto mb-2 mb-lg-0">
+    {% for menuItem in menu.MenuItems %}
+        {% assign menuLabelDownCase = menuItem.Label | downcase %}
+        <li class="nav-item">
+            <a
+                class="{{ menuItem.CssClassName }} {% if Target.RoutePath == menuItem.Label or ContentType.DeveloperName == menuLabelDownCase %}active{% endif %}"
+                href="{{ menuItem.Url }}"
+                {% if menuItem.OpenInNewTab %}target="_blank"{% endif %}
+            >
+                {{ menuItem.Label }}
+            </a>
+        </li>
+    {% endfor %}
+</ul>
+
+{% assign footerMenu = get_menu('footer') %}
+```
+
+Menu item model:
+
+```text
+string Id
+string Label
+string Url
+bool IsDisabled
+bool OpenInNewTab
+string? CssClassName
+int Ordinal
+bool IsFirstItem
+bool IsLastItem
+IEnumerable<NavigationMenuItem_RenderModel> MenuItems
+```
+
+You can iterate nested `MenuItems` for dropdowns / sub-menus.
+
+---
+
+## 10. Custom filters
+
+### 10.1 `attachment_redirect_url`
+
+- Input: attachment field `.Value`.
+- Output: URL relative to the current site:
+  - `/raytha/media-items/objectkey/{key}`
+- When requested, Raytha:
+  - Issues a **302 redirect** to the underlying storage location.
+  - Generates a presigned / SAS URL.
+- Useful when you want storage private but accessible via Raytha.
+
+Example:
+
+```liquid
+{{ Target.PublishedContent.attachment.Value | attachment_redirect_url }}
+```
+
+> Note: Many such links on a page means many extra redirect requests.
+
+### 10.2 `attachment_public_url`
+
+- Input: attachment field `.Value`.
+- Output: direct URL to file on the storage provider.
+- No presigned / SAS logic. Your storage bucket must allow **anonymous read**.
+
+Example:
+
+```liquid
+{{ Target.PublishedContent.attachment.Value | attachment_public_url }}
+```
+
+### 10.3 `raytha_attachment_url` (deprecated)
+
+- Old name for `attachment_redirect_url`.
+- Scheduled to be removed in v1.0.6.
+- Prefer `attachment_redirect_url`.
+
+### 10.4 `organization_time`
+
+- Converts a DateTime into the organization’s configured timezone.
+- Common with `CreationTime`, `LastModificationTime`, etc.
+- Often combined with Liquid’s `date` filter.
+
+Example:
+
+```liquid
+{{ item.CreationTime | organization_time | date: "%c" }}
+```
+
+### 10.5 `groupby`
+
+Common usage:
+
+```liquid
+{% assign grouped_items = Target.Items | groupby: "PublishedContent.developer_name" %}
+
+{% for grouped_item in grouped_items %}
+    {{ grouped_item.key }}
+    {% for item in grouped_item.items %}
+        {{ item.PublishedContent.developer_name.Value }}
+    {% endfor %}
+{% endfor %}
+```
+
+- Groups `Target.Items` by `PublishedContent.developer_name`.
+- Each `grouped_item` has:
+  - `key`
+  - `items` (array of items in that group)
+
+### 10.6 `json`
+
+- Dumps any object as JSON-like output.
+- Very useful for debugging to see the shape of objects.
+
+Example:
+
+```liquid
+{{ Target | json }}
+```
+
+Use this during development and remove it from production templates.
+
+---
+
+## 11. General guidelines for Cursor
+
+When generating Raytha templates:
+
+1. **Use Liquid syntax** compatible with Fluid.
+2. For **layout/parent templates**, always include `{% renderbody %}`.
+3. Use `Target` appropriately:
+   - List views: iterate `Target.Items`.
+   - Detail views: treat `Target` as the item.
+4. Prefer `.Value` for logic, `.Text` for display.
+5. Be mindful that function calls (`get_content_items`, etc.) hit the DB.
+6. Use OData (`filter`, `orderby`, `pageSize`, `pageNumber`, `search`) only on **public list view URLs**, not inside Liquid.
+7. Use `attachment_redirect_url` by default for secured files; `attachment_public_url` only when storage is publicly readable.
+8. Use `organization_time` when showing times that should respect the org timezone.
+9. Use `json` during development to inspect objects, then remove it in final templates.

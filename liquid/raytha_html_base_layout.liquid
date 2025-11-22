@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>
+    {% if Target.PrimaryField %}
+    {{ Target.PrimaryField }} - {{ ContentType.LabelPlural }} | {{ CurrentOrganization.OrganizationName }}
+    {% elsif ContentType.LabelPlural %}
+    {{ ContentType.LabelPlural }} | {{ CurrentOrganization.OrganizationName }}
+    {% else %}
+    {{ CurrentOrganization.OrganizationName }}
+    {% endif %}
+  </title>
+
+  <link rel="shortcut icon" href={{ "favicon.ico" | attachment_public_url }} type="image/x-icon" />
+  <link rel="stylesheet" href={{ "bootstrap.min.css" | attachment_public_url }}>
+</head>
+
+<body>
+  <header>
+    <nav
+      class="navbar navbar-expand-lg navbar-light d-flex flex-wrap align-items-center justify-content-center justify-content-md-between py-3 mb-4 border-bottom">
+      <div class="container-fluid">
+        <a class="navbar-brand text-black" href="{{ PathBase }}/">{{ CurrentOrganization.OrganizationName }}</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+          {% assign menu = get_main_menu() %}
+          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+            {% for menuItem in menu.MenuItems %}
+                {% assign menuLabelDownCase = menuItem.Label | downcase %}
+                <li class="nav-item">
+                  <a class="{{ menuItem.CssClassName }} {% if Target.RoutePath == menuItem.Label or ContentType.DeveloperName == menuLabelDownCase %} active {% endif %}" href="{{ menuItem.Url }}">
+                    {{ menuItem.Label }}
+                  </a>
+                </li>
+            {% endfor %}
+          </ul>
+          <div class="text-end">
+            {% if CurrentUser.IsAuthenticated %}
+            <ul class="navbar-nav me-auto">
+              <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown"
+                  aria-expanded="false">
+                  {{ CurrentUser.FullName }}
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                  <li><a class="dropdown-item" href="{{ PathBase }}/account/me">My profile</a></li>
+                  <li><a class="dropdown-item" href="{{ PathBase }}/account/me/change-password">Change password</a></li>
+                  <li>
+                    <hr class="dropdown-divider">
+                  </li>
+                  <li><a class="dropdown-item" href="{{ PathBase }}/account/logout">Log out</a></li>
+                  {% if CurrentUser.IsAdmin %}
+                  <li><a href="{{ PathBase }}/raytha" class="dropdown-item">Admin panel</a></li>
+                  {% endif %}
+                </ul>
+              </li>
+            </ul>
+            {% else %}
+            <a href="{{ PathBase }}/account/login" class="btn btn-outline-primary me-2">Login</a>
+            <a href="{{ PathBase }}/account/create" class="btn btn-primary">Sign-up</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <main style="min-height:75vh">
+    {% renderbody %}
+  </main>
+
+  <div class="container-fluid border-top">
+    <footer class="d-flex flex-wrap justify-content-center align-items-center py-4">
+      <p class="col-md-2 mb-0 text-body-secondary">© 2024 {{ CurrentOrganization.OrganizationName }}</p>
+
+      <ul class="nav col-md-2 justify-content-center">
+        <li class="nav-item"><a rel="nofollow" href="https://raytha.com"
+            class="nav-link px-2 text-body-secondary">Raytha CMS</a></li>
+      </ul>
+    </footer>
+  </div>
+  <script src={{ "bootstrap.bundle.min.js" | attachment_public_url }}></script>
+</body>
+
+</html>
