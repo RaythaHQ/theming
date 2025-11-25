@@ -147,7 +147,7 @@ Parent templates use `{% renderbody %}` to inject child content.
 **Available functions:**
 - `get_main_menu()` — Returns main navigation menu
 - `get_menu('developer_name')` — Returns specific menu
-- `get_content_items(ContentType='name', PageSize=10)` — Query content
+- `get_content_items(ContentType='name', Filter='odata filter exp', OrderBy='developer_name asc/desc', PageNumber=1, PageSize=10)` — Query content
 - `get_content_item_by_id(id)` — Get single item
 - `get_content_type_by_developer_name(name)` — Get content type metadata
 
