@@ -1,0 +1,99 @@
+{
+  "liquid_file": "raytha_html_content_item_list",
+  "Target": {
+    "Label": "Blog Posts",
+    "RoutePath": "posts.html",
+    "Items": [
+      {
+        "detail_liquid_file": "raytha_html_content_item_detail",
+        "PrimaryField": "Getting Started with Raytha CMS",
+        "RoutePath": "posts_getting-started.html",
+        "CreationTime": "2024-01-15T10:30:00Z",
+        "LastModificationTime": "2024-01-15T14:00:00Z",
+        "IsPublished": true,
+        "PublishedContent": {
+          "title": {
+            "Text": "Getting Started with Raytha CMS",
+            "Value": "Getting Started with Raytha CMS"
+          },
+          "content": {
+            "Text": "<h2>Introduction</h2><p>Welcome to Raytha CMS! This is a comprehensive guide to help you get started with building your first website using Raytha. In this article, we'll cover the basics of content types, templates, and how to publish your first content item.</p><h2>What is Raytha?</h2><p>Raytha is a powerful, open-source content management system built with .NET that gives you complete control over your content and templates. Unlike traditional CMS platforms, Raytha lets you define exactly how your content is structured and displayed.</p><h2>Getting Started</h2><p>To get started with Raytha, you'll need to:</p><ul><li>Install .NET 8 or later</li><li>Clone the Raytha repository</li><li>Run the database migrations</li><li>Start the application</li></ul><h2>Creating Your First Content Type</h2><p>Content types are the foundation of Raytha. They define the structure of your content with custom fields like text, images, relationships, and more. Head to the Admin Panel to create your first content type!</p>",
+            "Value": "<h2>Introduction</h2><p>Welcome to Raytha CMS! This is a comprehensive guide to help you get started with building your first website using Raytha. In this article, we'll cover the basics of content types, templates, and how to publish your first content item.</p><h2>What is Raytha?</h2><p>Raytha is a powerful, open-source content management system built with .NET that gives you complete control over your content and templates. Unlike traditional CMS platforms, Raytha lets you define exactly how your content is structured and displayed.</p><h2>Getting Started</h2><p>To get started with Raytha, you'll need to:</p><ul><li>Install .NET 8 or later</li><li>Clone the Raytha repository</li><li>Run the database migrations</li><li>Start the application</li></ul><h2>Creating Your First Content Type</h2><p>Content types are the foundation of Raytha. They define the structure of your content with custom fields like text, images, relationships, and more. Head to the Admin Panel to create your first content type!</p>"
+          }
+        }
+      },
+      {
+        "detail_liquid_file": "raytha_html_content_item_detail",
+        "PrimaryField": "Understanding Liquid Templates",
+        "RoutePath": "posts_liquid-templates.html",
+        "CreationTime": "2024-01-20T09:00:00Z",
+        "LastModificationTime": "2024-01-21T11:30:00Z",
+        "IsPublished": true,
+        "PublishedContent": {
+          "title": {
+            "Text": "Understanding Liquid Templates",
+            "Value": "Understanding Liquid Templates"
+          },
+          "content": {
+            "Text": "<h2>What is Liquid?</h2><p>Liquid is a powerful templating language that allows you to create dynamic web pages. In Raytha, we use the Fluid library to render Liquid templates with full .NET integration.</p><h2>Basic Syntax</h2><p>Liquid uses two types of delimiters:</p><ul><li><code>Double curly braces</code> - Output tags for displaying content</li><li><code>Curly brace percent</code> - Logic tags for control flow</li></ul><h2>Variables</h2><p>Access your content data through variables like Target, ContentType, and CurrentOrganization.</p><h2>Filters</h2><p>Transform output with filters like the date filter to format timestamps.</p>",
+            "Value": "<h2>What is Liquid?</h2><p>Liquid is a powerful templating language that allows you to create dynamic web pages. In Raytha, we use the Fluid library to render Liquid templates with full .NET integration.</p><h2>Basic Syntax</h2><p>Liquid uses two types of delimiters:</p><ul><li><code>Double curly braces</code> - Output tags for displaying content</li><li><code>Curly brace percent</code> - Logic tags for control flow</li></ul><h2>Variables</h2><p>Access your content data through variables like Target, ContentType, and CurrentOrganization.</p><h2>Filters</h2><p>Transform output with filters like the date filter to format timestamps.</p>"
+          }
+        }
+      },
+      {
+        "detail_liquid_file": "raytha_html_content_item_detail",
+        "PrimaryField": "Building Custom Content Types",
+        "RoutePath": "posts_custom-content-types.html",
+        "CreationTime": "2024-02-01T14:00:00Z",
+        "LastModificationTime": "2024-02-02T10:15:00Z",
+        "IsPublished": true,
+        "PublishedContent": {
+          "title": {
+            "Text": "Building Custom Content Types",
+            "Value": "Building Custom Content Types"
+          },
+          "content": {
+            "Text": "<h2>The Power of Custom Content Types</h2><p>One of Raytha's most powerful features is the ability to create custom content types with your own fields. Whether you're building a blog, an e-commerce site, or a documentation portal, you can define exactly the fields you need.</p><h2>Available Field Types</h2><ul><li><strong>Single Line Text</strong> - Short text input</li><li><strong>Long Text</strong> - Multi-line text</li><li><strong>WYSIWYG</strong> - Rich text editor</li><li><strong>Dropdown</strong> - Single select</li><li><strong>Checkbox</strong> - Boolean toggle</li><li><strong>Date</strong> - Date picker</li><li><strong>Attachment</strong> - File upload</li><li><strong>One-to-One Relationship</strong> - Link to another content item</li></ul><h2>Best Practices</h2><p>Plan your content structure before creating types. Consider relationships between content types and how they'll be displayed in templates.</p>",
+            "Value": "<h2>The Power of Custom Content Types</h2><p>One of Raytha's most powerful features is the ability to create custom content types with your own fields. Whether you're building a blog, an e-commerce site, or a documentation portal, you can define exactly the fields you need.</p><h2>Available Field Types</h2><ul><li><strong>Single Line Text</strong> - Short text input</li><li><strong>Long Text</strong> - Multi-line text</li><li><strong>WYSIWYG</strong> - Rich text editor</li><li><strong>Dropdown</strong> - Single select</li><li><strong>Checkbox</strong> - Boolean toggle</li><li><strong>Date</strong> - Date picker</li><li><strong>Attachment</strong> - File upload</li><li><strong>One-to-One Relationship</strong> - Link to another content item</li></ul><h2>Best Practices</h2><p>Plan your content structure before creating types. Consider relationships between content types and how they'll be displayed in templates.</p>"
+          }
+        }
+      }
+    ],
+    "TotalCount": 3,
+    "PageNumber": 1,
+    "PageSize": 25,
+    "TotalPages": 1,
+    "FirstVisiblePageNumber": 1,
+    "LastVisiblePageNumber": 1,
+    "PreviousDisabledCss": true,
+    "NextDisabledCss": true
+  },
+  "ContentType": {
+    "LabelPlural": "Posts",
+    "LabelSingular": "Post",
+    "DeveloperName": "posts",
+    "Description": "Blog posts and articles",
+    "ContentTypeFields": [
+      {
+        "Label": "Title",
+        "DeveloperName": "title",
+        "FieldType": "single_line_text"
+      },
+      {
+        "Label": "Content",
+        "DeveloperName": "content",
+        "FieldType": "wysiwyg"
+      }
+    ]
+  },
+  "CurrentOrganization": {
+    "OrganizationName": "My Raytha Site",
+    "TimeZone": "America/New_York"
+  },
+  "CurrentUser": {
+    "IsAuthenticated": false,
+    "IsAdmin": false
+  },
+  "PathBase": ".",
+  "QueryParams": {}
+}

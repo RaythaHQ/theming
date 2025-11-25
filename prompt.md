@@ -1,171 +1,141 @@
-You are working in a Raytha theme repo that follows the workflow and conventions described in `.cursor/setup.md` (HTML first, then Liquid, using `/models` for content types).
+# Sample Prompt: Knowledge Base Website
 
-Goal: Design a small but **impressively well-designed knowledge base website** for a single SaaS product. The site should look like a modern docs / help center:
-
-- Clean, professional, but with strong accent colors and good typography.
-- Responsive layout.
-- Minimal but thoughtful use of icons, spacing, and visual hierarchy.
-
-### Overall constraints
-
-- Follow the HTML→Liquid workflow in `.cursor/setup.md`.
-- Use `/html` for fully rendered mockups (no Liquid, just static HTML).
-- Use `/liquid` for Raytha Liquid templates that will eventually be copy/pasted into Raytha.
-- Use `/models` to define and evolve the content models. You may modify or add model files as needed.
-- For images in HTML mockups, use `https://placehold.co/{width}x{height}`.
-- For CSS/JS libraries (e.g., Bootstrap), **use CDNs only**.
-- Each HTML file must be a self-contained, valid HTML5 page that renders correctly on its own.
+This is an example prompt for building a knowledge base website using the Raytha template workflow. Modify it for your own project needs.
 
 ---
 
-## 1. Content models
-
-1. Create or update a model file for the knowledge base articles, e.g. `models/articles.md`, in the same simple table format as existing models.
-
-   Use a **thin set of fields** that covers common KB needs, something like:
-
-   - `title` – single_line_text
-   - `slug` – single_line_text
-   - `summary` – single_line_text
-   - `content` – wysiwyg or long_text
-   - `category` – single_line_text or single_select
-   - `last_updated` – datetime
-   - `difficulty` – single_select (e.g., Beginner / Intermediate / Advanced)
-
-   Keep the model concise but realistic for a SaaS knowledge base.
-
-2. If needed, lightly adjust `pages.md` or add another model (e.g. `categories.md`) but only if it clearly helps the design.
+You are working in a Raytha theme repository. Follow the workflow in `.cursor/setup.md`:
+1. Define content models in `/models/`
+2. Generate sample data in `/src/sample-data/`
+3. Write Liquid templates in `/liquid/`
+4. Run the simulator to generate HTML previews
+5. Iterate until the design is correct
 
 ---
 
-## 2. Layout and CSS
+## Goal
 
-1. In `/html`, create a dedicated CSS file for the knowledge base, for example:
-
-   - `html/knowledge_base.css`
-
-2. Choose a **cohesive color system**:
-
-   - Primary accent color (for buttons, links, key highlights)
-   - Secondary accent color (badges, labels)
-   - Neutral background + surface colors
-   - Typographic scale (headings, body, small meta text)
-
-3. Implement the CSS in `knowledge_base.css` with:
-
-   - A simple, modern layout system (flex / grid is fine).
-   - Nice card styles for article previews.
-   - Good spacing and line-height defaults.
-   - Styles for:
-     - Top navigation / header
-     - Search bar
-     - Category pill/badges
-     - Article list cards
-     - Article content body
-     - Breadcrumbs
-     - Footer
-
-4. Reference this CSS from each HTML page via a `<link>` tag.
-
-You may optionally use Bootstrap via CDN **in addition to** or instead of custom CSS, but the end result should feel like a polished product docs site, not a raw default Bootstrap demo.
+Design a **modern knowledge base / help center** for a SaaS product with:
+- Clean, professional design with strong accent colors
+- Responsive layout
+- Good typography and visual hierarchy
 
 ---
 
-## 3. HTML pages to create
+## Step 1: Create the Content Model
 
-Create / update the following HTML mockups in `/html`:
+Create `models/articles.md` with fields for knowledge base articles:
 
-### 3.1 Home page – `html/home.html`
+| Label        | Developer Name | Field Type        |
+|--------------|----------------|-------------------|
+| Title        | title          | single_line_text  |
+| Summary      | summary        | long_text         |
+| Content      | content        | wysiwyg           |
+| Category     | category       | dropdown          |
+| Difficulty   | difficulty     | radio             |
 
-Purpose: A landing page for the knowledge base.
-
-Requirements:
-
-- Hero section with:
-  - Product name and short tagline about the SaaS.
-  - Prominent search bar (“Search the docs…”).
-- Highlighted key categories (e.g., Getting Started, Integrations, Billing, Troubleshooting) as visually appealing cards or tiles.
-- A “Popular articles” or “Recently updated” section showing a few articles with:
-  - Title
-  - Category
-  - Short summary
-  - Last updated date
-- Use **hardcoded static text** for most of this page; assume this rarely changes.
-- Include header and footer that will make sense to reuse for list/detail pages.
-
-Use fake content that fits a generic SaaS help center (e.g., “Connecting Your Account”, “Managing Team Members”, “API Authentication”, etc.).
-
-### 3.2 Article listing page – `html/article_list.html`
-
-Purpose: Show a list of knowledge base articles.
-
-Requirements:
-
-- Reuse the same header/nav and overall layout as the home page.
-- Title area with page title, e.g. **“All Articles”** or a category name.
-- Search bar (can be non-functional static HTML).
-- Filters/labels (e.g., category pills, difficulty tags) represented visually, even if static.
-- Article list as cards or rows. For each article, include:
-  - Title
-  - Category
-  - Short summary
-  - Last updated date
-  - Difficulty (optional badge)
-- Use simulated content based on the `articles` model defined in `/models/articles.md`.
-
-### 3.3 Article detail page – `html/article_detail.html`
-
-Purpose: Show a single knowledge base article.
-
-Requirements:
-
-- Reuse header/nav + footer.
-- Breadcrumbs (e.g.: Home / Getting Started / Connecting Your Account).
-- Article title, metadata row (category, last updated, difficulty).
-- Main content area with realistic doc-style formatting:
-  - Multiple headings
-  - Paragraphs
-  - Inline code samples
-  - Numbered and bulleted lists
-  - Callout / tip boxes (using CSS only, no JS needed).
-- At the bottom, a “Related articles” section with a few article cards.
-- All content should be static HTML that *resembles* real data from the `articles` model.
+Categories might include: Getting Started, Integrations, Billing, Troubleshooting, API
+Difficulty levels: Beginner, Intermediate, Advanced
 
 ---
 
-## 4. Integration with Liquid templates (planning only for now)
+## Step 2: Generate Sample Data
 
-Do **not** modify the Liquid templates yet. Instead:
+Create `/src/sample-data/articles.json` based on the model above.
 
-- Make sure the HTML structure and classes you build can be cleanly mapped later into the existing Liquid layouts:
-  - `raytha_html_base_layout.liquid`
-  - `raytha_html_content_item_detail.liquid`
-  - `raytha_html_content_item_list.liquid`
-- Keep in mind that:
-  - The home page can map to a Raytha list view or a simple page template later.
-  - `article_list.html` will map to a list view using `Target.Items`.
-  - `article_detail.html` will map to a detail view using `Target`.
+Include:
+- At least 5-6 realistic articles with varied categories and difficulties
+- Each item should have `detail_liquid_file` set to generate individual article pages
+- Use realistic SaaS help content (e.g., "Connecting Your Account", "API Authentication", "Managing Team Members")
+- Set `RoutePath` for each item (e.g., `articles_connecting-your-account.html`)
 
-Once the HTML is complete and I confirm I’m happy with the look and structure, we will do a second pass where you:
-
-- Update the Liquid templates under `/liquid` to match the approved HTML.
-- Replace hardcoded content with the correct Liquid variables and loops (using `/models` as the source of truth).
+Also update `menus.json` to include navigation to the articles list.
 
 ---
 
-## 5. First tasks to run now
+## Step 3: Create Liquid Templates
 
-1. Inspect `.cursor/setup.md` and the current `/models` and `/html` and `/liquid` directories.
-2. Create or update `models/articles.md` with the thin article schema described above.
-3. Propose a color system and overall visual style (briefly in comments or a short Markdown note).
-4. Implement:
-   - `html/knowledge_base.css`
-   - `html/home.html`
-   - `html/article_list.html`
-   - `html/article_detail.html`
-5. Make sure each HTML file:
-   - References the CSS file,
-   - Loads any CDN libraries it needs,
-   - And renders as a fully functional standalone page.
+### Base Layout (`raytha_html_base_layout.liquid`)
+Update the base layout with:
+- Modern header with logo and navigation (use `get_main_menu()`)
+- Clean footer
+- Use Bootstrap 5 via CDN
+- Add custom CSS for the knowledge base aesthetic
 
-After you’ve done this, show me a summary of the new/changed files and the overall layout so I can review the design before we move on to updating the Liquid templates.
+### Home Page (`raytha_html_home.liquid`)
+Create a knowledge base landing page with:
+- Hero section with search bar placeholder
+- Category cards/tiles linking to filtered article lists
+- "Popular Articles" or "Recently Updated" section
+- Use `get_content_items(ContentType='articles', PageSize=6)` to fetch articles
+
+### Article List (`raytha_html_content_item_list.liquid`)
+Update for article listings:
+- Page title showing the content type or category
+- Search bar (can be non-functional placeholder)
+- Article cards showing: title, category, summary, difficulty badge, last updated
+- Pagination controls using `Target.PageNumber`, `Target.TotalPages`, etc.
+- Loop through `Target.Items`
+
+### Article Detail (`raytha_html_content_item_detail.liquid`)
+Update for single article view:
+- Breadcrumbs (Home > Category > Article Title)
+- Article title and metadata (category, difficulty, last updated)
+- Main content area with good typography for docs
+- "Related Articles" section at the bottom
+
+---
+
+## Step 4: Run and Preview
+
+After creating templates and sample data:
+
+```bash
+cd src
+dotnet run
+```
+
+Open the generated HTML files in `/html/` to preview:
+- `home.html`
+- `articles.html` (list view)
+- Individual article pages
+
+---
+
+## Step 5: Iterate
+
+Review the HTML output. If changes are needed:
+1. Update the Liquid templates in `/liquid/`
+2. Re-run `dotnet run`
+3. Refresh browser to see changes
+
+Repeat until the design looks polished.
+
+---
+
+## Design Guidelines
+
+- **Colors**: Choose a cohesive palette with primary accent, secondary accent, and neutral backgrounds
+- **Typography**: Clear hierarchy with distinct heading sizes, readable body text
+- **Cards**: Clean article preview cards with subtle shadows or borders
+- **Badges**: Category and difficulty indicators as colored pills/badges
+- **Spacing**: Generous whitespace, consistent padding
+- **Responsive**: Works well on desktop and mobile
+
+---
+
+## When Complete
+
+Once satisfied with the templates:
+1. Copy the Liquid files from `/liquid/` into Raytha's template editor
+2. Create the Articles content type in Raytha matching your model
+3. Add real content and publish
+
+---
+
+## Notes
+
+- The simulator uses placeholder images for attachments automatically
+- All links between pages work when previewing locally
+- Sample data should feel realistic to properly test the templates
+- Focus on the Liquid templates — the HTML files are just for preview

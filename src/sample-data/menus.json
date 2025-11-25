@@ -1,0 +1,92 @@
+{
+  "menus": [
+    {
+      "Id": "main-menu-001",
+      "Label": "Main Menu",
+      "DeveloperName": "main",
+      "IsMainMenu": true,
+      "MenuItems": [
+        {
+          "Id": "menu-item-001",
+          "Label": "Home",
+          "Url": "home.html",
+          "IsDisabled": false,
+          "OpenInNewTab": false,
+          "CssClassName": "nav-link",
+          "Ordinal": 1,
+          "IsFirstItem": true,
+          "IsLastItem": false,
+          "MenuItems": []
+        },
+        {
+          "Id": "menu-item-002",
+          "Label": "Posts",
+          "Url": "posts.html",
+          "IsDisabled": false,
+          "OpenInNewTab": false,
+          "CssClassName": "nav-link",
+          "Ordinal": 2,
+          "IsFirstItem": false,
+          "IsLastItem": false,
+          "MenuItems": []
+        },
+        {
+          "Id": "menu-item-003",
+          "Label": "Pages",
+          "Url": "pages.html",
+          "IsDisabled": false,
+          "OpenInNewTab": false,
+          "CssClassName": "nav-link",
+          "Ordinal": 3,
+          "IsFirstItem": false,
+          "IsLastItem": false,
+          "MenuItems": []
+        },
+        {
+          "Id": "menu-item-004",
+          "Label": "About",
+          "Url": "pages_about.html",
+          "IsDisabled": false,
+          "OpenInNewTab": false,
+          "CssClassName": "nav-link",
+          "Ordinal": 4,
+          "IsFirstItem": false,
+          "IsLastItem": true,
+          "MenuItems": []
+        }
+      ]
+    },
+    {
+      "Id": "footer-menu-001",
+      "Label": "Footer Menu",
+      "DeveloperName": "footer",
+      "IsMainMenu": false,
+      "MenuItems": [
+        {
+          "Id": "footer-item-001",
+          "Label": "Privacy Policy",
+          "Url": "pages_privacy.html",
+          "IsDisabled": false,
+          "OpenInNewTab": false,
+          "CssClassName": "nav-link",
+          "Ordinal": 1,
+          "IsFirstItem": true,
+          "IsLastItem": false,
+          "MenuItems": []
+        },
+        {
+          "Id": "footer-item-002",
+          "Label": "Contact",
+          "Url": "pages_contact.html",
+          "IsDisabled": false,
+          "OpenInNewTab": false,
+          "CssClassName": "nav-link",
+          "Ordinal": 2,
+          "IsFirstItem": false,
+          "IsLastItem": true,
+          "MenuItems": []
+        }
+      ]
+    }
+  ]
+}
