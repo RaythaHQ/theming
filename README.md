@@ -97,7 +97,107 @@ Open the generated HTML files in your browser. If changes are needed:
 3. Refresh your browser
 
 ### Step 8 — Deploy to Raytha
-Once satisfied, copy your Liquid templates into Raytha's template editor.
+Once satisfied, you have two options:
+
+**Option A: Manual Copy**
+Copy your Liquid templates into Raytha's template editor.
+
+**Option B: Auto-Sync via API** (Recommended)
+Configure `raytha.config.json` to automatically sync templates to Raytha:
+
+```bash
+# Copy the example config
+cp raytha.config.example.json raytha.config.json
+
+# Edit and add your API key and theme developer name
+```
+
+Then run with the `--sync` flag:
+```bash
+cd src
+dotnet run -- --sync      # Render and sync to Raytha
+dotnet run -- --sync-only # Only sync (skip rendering)
+```
+
+---
+
+## Raytha API Sync
+
+The simulator can automatically sync your Liquid templates to a running Raytha instance via the API.
+
+### Configuration
+
+Create `raytha.config.json` in the project root (copy from `raytha.config.example.json`):
+
+```json
+{
+  "baseUrl": "http://localhost:5000",
+  "apiKey": "YOUR_API_KEY_HERE",
+  "themeDeveloperName": "raytha_default_theme",
+  "autoSync": false
+}
+```
+
+### Configuration Options
+
+| Option | Description |
+|--------|-------------|
+| `baseUrl` | Raytha instance URL (default: `http://localhost:5000`) |
+| `apiKey` | Your Raytha API key (get from Admin → Settings → API Keys) |
+| `themeDeveloperName` | Developer name of your theme (must already exist in Raytha) |
+| `autoSync` | When `true`, sync automatically after every render |
+
+### How Templates Are Discovered
+
+Templates are **automatically discovered** from the `liquid/` directory:
+
+- **Developer name** = filename without `.liquid` extension (e.g., `raytha_html_home.liquid` → `raytha_html_home`)
+- **Parent layout** = extracted from `{% layout 'name' %}` tag in the file
+- **Is base layout** = `true` if template contains `{% renderbody %}`
+- **Label** = auto-generated from filename (e.g., `raytha_html_home` → "Raytha Html Home")
+
+### Optional: Override Labels
+
+If you want custom labels in Raytha admin, add a `templates` section to your config:
+
+```json
+{
+  "baseUrl": "http://localhost:5000",
+  "apiKey": "YOUR_API_KEY_HERE",
+  "themeDeveloperName": "raytha_default_theme",
+  "autoSync": false,
+  "templates": {
+    "raytha_html_home": {
+      "label": "Homepage Template"
+    }
+  }
+}
+```
+
+### Sync Commands
+
+```bash
+cd src
+dotnet run -- --sync       # Render all templates, then sync to Raytha
+dotnet run -- --sync-only  # Only sync templates (skip local rendering)
+```
+
+### ⚠️ Important: Local-Only Syntax
+
+The following are **local-only** and automatically transformed when syncing:
+
+| Local Syntax | Transformation | Reason |
+|--------------|----------------|--------|
+| `{% layout 'name' %}` | Stripped | Parent relationship sent via API instead |
+| `.html` in URLs | Stripped | Local simulator uses `.html` files, Raytha uses clean URLs |
+
+The `{% renderbody %}` tag works in **both** local simulator and production Raytha.
+
+**Example transformations when syncing:**
+```liquid
+{% layout 'raytha_html_base_layout' %}     → (removed, parent sent via API)
+href="{{ PathBase }}/{{ Type }}.html"      → href="{{ PathBase }}/{{ Type }}"
+```
 
 ---
 

@@ -1,0 +1,58 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Raytha Theming Configuration",
+    "description": "Configuration for syncing Liquid templates with a Raytha CMS instance",
+    "type": "object",
+    "properties": {
+        "baseUrl": {
+            "type": "string",
+            "description": "Base URL of the Raytha instance (e.g., http://localhost:5000)",
+            "default": "http://localhost:5000"
+        },
+        "apiKey": {
+            "type": "string",
+            "description": "API key for authenticating with the Raytha API"
+        },
+        "themeDeveloperName": {
+            "type": "string",
+            "description": "Developer name of the theme in Raytha (must already exist)"
+        },
+        "autoSync": {
+            "type": "boolean",
+            "description": "When true, automatically sync templates to Raytha after each render. When false, work locally only.",
+            "default": false
+        },
+        "templates": {
+            "type": "object",
+            "description": "Optional: Override labels or settings for specific templates. Templates are auto-discovered from the liquid/ directory.",
+            "additionalProperties": {
+                "type": "object",
+                "properties": {
+                    "label": {
+                        "type": "string",
+                        "description": "Human-readable label for the template in Raytha (default: auto-generated from filename)"
+                    },
+                    "allowAccessForNewContentTypes": {
+                        "type": "boolean",
+                        "description": "Whether new content types should have access to this template",
+                        "default": true
+                    },
+                    "templateAccessToModelDefinitions": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "List of content type developer names that can use this template"
+                    }
+                }
+            }
+        }
+    },
+    "required": [
+        "apiKey",
+        "themeDeveloperName"
+    ]
+}

@@ -7,6 +7,8 @@ using RaythaSimulator.Models;
 string? sampleDataFile = null;
 string? outputPath = null;
 bool renderAll = false;
+bool syncOnly = false;
+bool forceSync = false;
 
 for (int i = 0; i < args.Length; i++)
 {
@@ -31,6 +33,15 @@ for (int i = 0; i < args.Length; i++)
     {
         renderAll = true;
     }
+    else if (args[i] == "--sync" || args[i] == "-s")
+    {
+        forceSync = true;
+    }
+    else if (args[i] == "--sync-only")
+    {
+        syncOnly = true;
+        forceSync = true;
+    }
     else if (!args[i].StartsWith('-'))
     {
         sampleDataFile = args[i];
@@ -43,6 +54,40 @@ var projectRoot = FindProjectRoot(workingDir);
 var liquidDir = Path.Combine(projectRoot, "liquid");
 var defaultSampleDataDir = Path.Combine(projectRoot, "src", "sample-data");
 var htmlDir = outputPath ?? Path.Combine(projectRoot, "html");
+var configPath = Path.Combine(projectRoot, "raytha.config.json");
+
+// Load Raytha config if present
+RaythaConfig? config = null;
+if (File.Exists(configPath))
+{
+    try
+    {
+        var configJson = File.ReadAllText(configPath);
+        config = JsonSerializer.Deserialize<RaythaConfig>(configJson);
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"Warning: Failed to load raytha.config.json: {ex.Message}");
+    }
+}
+
+// If sync-only mode, just sync and exit
+if (syncOnly)
+{
+    if (config == null)
+    {
+        Console.Error.WriteLine("Error: raytha.config.json not found. Cannot sync templates.");
+        return 1;
+    }
+
+    if (string.IsNullOrEmpty(config.ApiKey) || config.ApiKey == "YOUR_API_KEY_HERE")
+    {
+        Console.Error.WriteLine("Error: API key not configured in raytha.config.json");
+        return 1;
+    }
+
+    return await SyncTemplates(config, liquidDir);
+}
 
 if (!Directory.Exists(liquidDir))
 {
@@ -53,10 +98,11 @@ if (!Directory.Exists(liquidDir))
 // Ensure output directory exists
 Directory.CreateDirectory(htmlDir);
 
-// If no file specified or --all, render all sample data files
+// Render templates
+int renderResult;
 if (renderAll || string.IsNullOrEmpty(sampleDataFile))
 {
-    return RenderAllSampleData(defaultSampleDataDir, liquidDir, htmlDir);
+    renderResult = RenderAllSampleData(defaultSampleDataDir, liquidDir, htmlDir);
 }
 else
 {
@@ -67,7 +113,46 @@ else
         return 1;
     }
     var sampleDataDir = Path.GetDirectoryName(sampleDataPath) ?? projectRoot;
-    return RenderSampleDataFile(sampleDataPath, liquidDir, sampleDataDir, htmlDir);
+    renderResult = RenderSampleDataFile(sampleDataPath, liquidDir, sampleDataDir, htmlDir);
+}
+
+// Sync to Raytha if enabled
+bool shouldSync = forceSync || (config?.AutoSync ?? false);
+if (shouldSync && config != null)
+{
+    if (string.IsNullOrEmpty(config.ApiKey) || config.ApiKey == "YOUR_API_KEY_HERE")
+    {
+        Console.WriteLine("\nSkipping sync: API key not configured in raytha.config.json");
+    }
+    else
+    {
+        var syncResult = await SyncTemplates(config, liquidDir);
+        if (syncResult != 0 && renderResult == 0)
+        {
+            renderResult = syncResult;
+        }
+    }
+}
+else if (forceSync && config == null)
+{
+    Console.Error.WriteLine("\nWarning: --sync specified but raytha.config.json not found");
+}
+
+return renderResult;
+
+static async Task<int> SyncTemplates(RaythaConfig config, string liquidDir)
+{
+    try
+    {
+        using var client = new RaythaApiClient(config, liquidDir);
+        var result = await client.SyncAllTemplatesAsync();
+        return result.Failed.Count > 0 ? 1 : 0;
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"Error syncing templates: {ex.Message}");
+        return 1;
+    }
 }
 
 static int RenderAllSampleData(string sampleDataDir, string liquidDir, string htmlDir)
@@ -269,13 +354,33 @@ static void PrintUsage()
     Console.WriteLine("Options:");
     Console.WriteLine("  -a, --all             Render all sample data files (default if no file specified)");
     Console.WriteLine("  -o, --output <path>   Output directory for rendered HTML (default: html/)");
+    Console.WriteLine("  -s, --sync            Sync templates to Raytha after rendering");
+    Console.WriteLine("  --sync-only           Only sync templates (skip rendering)");
     Console.WriteLine("  -h, --help            Show this help message");
+    Console.WriteLine();
+    Console.WriteLine("Raytha Sync:");
+    Console.WriteLine("  Configure raytha.config.json in the project root with:");
+    Console.WriteLine("    - baseUrl: Raytha instance URL (default: http://localhost:5000)");
+    Console.WriteLine("    - apiKey: Your Raytha API key");
+    Console.WriteLine("    - themeDeveloperName: The theme's developer name (must exist in Raytha)");
+    Console.WriteLine("    - autoSync: Set to true to sync automatically after each render");
+    Console.WriteLine();
+    Console.WriteLine("  Templates are auto-discovered from liquid/ directory:");
+    Console.WriteLine("    - Developer name = filename (e.g., my_template.liquid -> my_template)");
+    Console.WriteLine("    - Parent layout = detected from {% layout 'name' %} tag");
+    Console.WriteLine("    - Base layout = detected by presence of {% renderbody %} tag");
+    Console.WriteLine();
+    Console.WriteLine("  Local-only syntax (auto-stripped when syncing):");
+    Console.WriteLine("    - {% layout 'name' %} tag (parent sent via API instead)");
+    Console.WriteLine("    - .html in URLs (local uses files, Raytha uses clean URLs)");
     Console.WriteLine();
     Console.WriteLine("Examples:");
     Console.WriteLine("  dotnet run                              # Render all sample data files");
     Console.WriteLine("  dotnet run -- --all                     # Render all sample data files");
     Console.WriteLine("  dotnet run -- sample-data/posts.json    # Render single file");
     Console.WriteLine("  dotnet run -- --output ./output         # Render all to custom directory");
+    Console.WriteLine("  dotnet run -- --sync                    # Render and sync to Raytha");
+    Console.WriteLine("  dotnet run -- --sync-only               # Only sync templates (no render)");
     Console.WriteLine();
     Console.WriteLine("Sample Data Format:");
     Console.WriteLine("  For list views with individual detail pages, include 'detail_liquid_file'");
