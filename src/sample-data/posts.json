@@ -6,6 +6,7 @@
     "Items": [
       {
         "detail_liquid_file": "raytha_html_content_item_detail",
+        "Id": "post-001",
         "PrimaryField": "Getting Started with Raytha CMS",
         "RoutePath": "posts_getting-started.html",
         "CreationTime": "2024-01-15T10:30:00Z",
@@ -24,6 +25,7 @@
       },
       {
         "detail_liquid_file": "raytha_html_content_item_detail",
+        "Id": "post-002",
         "PrimaryField": "Understanding Liquid Templates",
         "RoutePath": "posts_liquid-templates.html",
         "CreationTime": "2024-01-20T09:00:00Z",
@@ -42,6 +44,7 @@
       },
       {
         "detail_liquid_file": "raytha_html_content_item_detail",
+        "Id": "post-003",
         "PrimaryField": "Building Custom Content Types",
         "RoutePath": "posts_custom-content-types.html",
         "CreationTime": "2024-02-01T14:00:00Z",
@@ -91,8 +94,10 @@
     "TimeZone": "America/New_York"
   },
   "CurrentUser": {
-    "IsAuthenticated": false,
-    "IsAdmin": false
+    "IsAuthenticated": true,
+    "IsAdmin": true,
+    "FirstName": "Admin",
+    "LastName": "User"
   },
   "PathBase": ".",
   "QueryParams": {}

@@ -1,9 +1,95 @@
 {% layout 'raytha_html_base_layout' %}
-<div class="container">
-  <div class="d-flex justify-content-center">
-    <div class="col-lg-8">
-      <h3>{{ Target.PrimaryField }}</h3>
-      {{ Target.PublishedContent.content.Text }}
+
+<!-- Page Header -->
+<div class="bg-white border-bottom py-4">
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-10 mx-auto">
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb mb-3">
+            <li class="breadcrumb-item">
+              <a href="{{ PathBase }}/" class="text-decoration-none">
+                <i class="bi bi-house-door me-1"></i>Home
+              </a>
+            </li>
+            <li class="breadcrumb-item">
+              <a href="{{ PathBase }}/{{ ContentType.DeveloperName }}.html" class="text-decoration-none">
+                {{ ContentType.LabelPlural }}
+              </a>
+            </li>
+            <li class="breadcrumb-item active text-truncate" aria-current="page">
+              {{ Target.PrimaryField }}
+            </li>
+          </ol>
+        </nav>
+        
+        <h1 class="display-6 fw-bold mb-3">{{ Target.PrimaryField }}</h1>
+        
+        <div class="d-flex flex-wrap align-items-center gap-3">
+          <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2">
+            <i class="bi bi-folder me-1"></i>{{ ContentType.LabelSingular }}
+          </span>
+          <span class="text-muted d-flex align-items-center gap-1">
+            <i class="bi bi-calendar3"></i>
+            {{ Target.CreationTime | organization_time: "%B %e, %Y" }}
+          </span>
+          {% if Target.LastModificationTime %}
+          <span class="text-muted d-flex align-items-center gap-1">
+            <i class="bi bi-pencil"></i>
+            Updated {{ Target.LastModificationTime | organization_time: "%B %e, %Y" }}
+          </span>
+          {% endif %}
+          {% if Target.IsPublished %}
+          <span class="badge bg-success bg-opacity-10 text-success">
+            <i class="bi bi-check-circle me-1"></i>Published
+          </span>
+          {% endif %}
+          
+          {% if CurrentUser.IsAdmin %}
+          <a href="{{ PathBase }}/raytha/contentitems/{{ ContentType.DeveloperName }}/edit/{{ Target.Id }}" class="btn btn-sm btn-warning d-inline-flex align-items-center gap-1 ms-auto">
+            <i class="bi bi-pencil-square"></i>
+            Edit in Admin
+          </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Content -->
+<div class="py-5">
+  <div class="container">
+    <div class="row">
+      <div class="col-lg-10 mx-auto">
+        <div class="card border-0 shadow-sm">
+          <div class="card-body p-4 p-lg-5">
+            <article class="lh-lg">
+              {{ Target.PublishedContent.content.Text }}
+            </article>
+          </div>
+        </div>
+        
+        <!-- Navigation -->
+        <div class="mt-4 pt-4 border-top">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <a href="{{ PathBase }}/{{ ContentType.DeveloperName }}.html" class="btn btn-outline-primary d-inline-flex align-items-center gap-2">
+              <i class="bi bi-arrow-left"></i>
+              Back to {{ ContentType.LabelPlural }}
+            </a>
+            <div class="d-flex gap-2">
+              <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" onclick="window.print()">
+                <i class="bi bi-printer"></i>
+                <span class="d-none d-sm-inline">Print</span>
+              </button>
+              <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" onclick="navigator.share ? navigator.share({title: '{{ Target.PrimaryField }}', url: window.location.href}) : navigator.clipboard.writeText(window.location.href)">
+                <i class="bi bi-share"></i>
+                <span class="d-none d-sm-inline">Share</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
