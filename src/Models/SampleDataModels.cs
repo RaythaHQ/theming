@@ -195,3 +195,117 @@ public class MenusData
     public List<NavigationMenuModel>? Menus { get; set; }
 }
 
+#region Site Pages
+
+/// <summary>
+/// Site pages data file structure
+/// </summary>
+public class SitePagesData
+{
+    [JsonPropertyName("CurrentOrganization")]
+    public OrganizationModel? CurrentOrganization { get; set; }
+
+    [JsonPropertyName("CurrentUser")]
+    public UserModel? CurrentUser { get; set; }
+
+    [JsonPropertyName("PathBase")]
+    public string PathBase { get; set; } = string.Empty;
+
+    [JsonPropertyName("pages")]
+    public List<SitePageModel>? Pages { get; set; }
+}
+
+/// <summary>
+/// Site page model
+/// </summary>
+public class SitePageModel
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("title")]
+    public string Title { get; set; } = string.Empty;
+
+    [JsonPropertyName("routePath")]
+    public string RoutePath { get; set; } = string.Empty;
+
+    [JsonPropertyName("isPublished")]
+    public bool IsPublished { get; set; } = true;
+
+    [JsonPropertyName("webTemplateDeveloperName")]
+    public string WebTemplateDeveloperName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Widgets organized by section name. Key is section name, value is list of widgets.
+    /// </summary>
+    [JsonPropertyName("publishedWidgets")]
+    public Dictionary<string, List<SitePageWidgetModel>>? PublishedWidgets { get; set; }
+
+    [JsonPropertyName("creationTime")]
+    public DateTime CreationTime { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
+/// Widget instance within a site page section
+/// </summary>
+public class SitePageWidgetModel
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("widgetType")]
+    public string WidgetType { get; set; } = string.Empty;
+
+    [JsonPropertyName("settingsJson")]
+    public string SettingsJson { get; set; } = "{}";
+
+    [JsonPropertyName("row")]
+    public int Row { get; set; } = 1;
+
+    [JsonPropertyName("column")]
+    public int Column { get; set; } = 1;
+
+    [JsonPropertyName("columnSpan")]
+    public int ColumnSpan { get; set; } = 12;
+
+    [JsonPropertyName("cssClass")]
+    public string? CssClass { get; set; }
+
+    [JsonPropertyName("htmlId")]
+    public string? HtmlId { get; set; }
+
+    [JsonPropertyName("customAttributes")]
+    public string? CustomAttributes { get; set; }
+}
+
+/// <summary>
+/// Widget data used during rendering (with parsed settings)
+/// </summary>
+public class SitePageWidgetRenderData
+{
+    public string Id { get; set; } = string.Empty;
+    public string WidgetType { get; set; } = string.Empty;
+    public string SettingsJson { get; set; } = "{}";
+    public int Row { get; set; }
+    public int Column { get; set; }
+    public int ColumnSpan { get; set; }
+    public string? CssClass { get; set; }
+    public string? HtmlId { get; set; }
+    public string? CustomAttributes { get; set; }
+
+    public static SitePageWidgetRenderData FromModel(SitePageWidgetModel model) => new()
+    {
+        Id = model.Id,
+        WidgetType = model.WidgetType,
+        SettingsJson = model.SettingsJson,
+        Row = model.Row,
+        Column = model.Column,
+        ColumnSpan = model.ColumnSpan,
+        CssClass = model.CssClass,
+        HtmlId = model.HtmlId,
+        CustomAttributes = model.CustomAttributes
+    };
+}
+
+#endregion
+

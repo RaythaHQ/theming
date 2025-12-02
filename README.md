@@ -10,124 +10,210 @@ Raytha is a versatile and lightweight general purpose content management system.
 
 # Raytha Template Development with Cursor
 
-This repository provides a workflow for designing and building Raytha Liquid templates using Cursor, with a built-in simulator that renders your templates to HTML for preview.
+This repository provides a reusable workflow for designing and building Raytha Liquid templates using Cursor, with a built-in simulator that renders your templates to HTML for preview.
 
-## How It Works
-
-1. **Define content models** in `/models/*.md`
-2. **Write Liquid templates** in `/liquid/*.liquid`
-3. **Generate sample data** in `/src/sample-data/*.json` based on your models
-4. **Run the simulator** to render HTML files to `/html/`
-5. **Preview and iterate** until templates look right
-6. **Copy Liquid templates** into your Raytha instance
-
-## Repository Structure
+## Project Structure
 
 ```
-├── liquid/                    # Liquid templates (your main focus)
-│   ├── raytha_html_base_layout.liquid
-│   ├── raytha_html_content_item_detail.liquid
-│   ├── raytha_html_content_item_list.liquid
-│   └── raytha_html_home.liquid
-├── models/                    # Content type definitions
-│   ├── posts.md
-│   └── pages.md
-├── src/                       # Template simulator (.NET 10)
-│   ├── sample-data/           # Sample data JSON files
-│   │   ├── posts.json
-│   │   ├── pages.json
-│   │   ├── home.json
-│   │   └── menus.json
+/raytha-theming/
+├── src/                          # Simulator source (never modify)
+│   ├── liquid/                   # Starter templates (copied to new projects)
+│   │   ├── raytha_html_*.liquid  # Page templates
+│   │   └── widgets/              # Widget templates
+│   ├── models/                   # Starter content type definitions
+│   │   └── posts.md
+│   ├── Program.cs                # Simulator entry point
+│   ├── RenderEngine.cs           # Liquid rendering engine
 │   └── ...
-├── html/                      # Generated HTML output (for preview)
-└── .cursor/
-    └── setup.md               # Cursor AI instructions
+├── dist/                         # YOUR PROJECTS (gitignored)
+│   └── <site-name>/              # Each site is a separate project
+│       ├── liquid/               # Customized templates
+│       │   ├── raytha_html_*.liquid
+│       │   └── widgets/
+│       ├── sample-data/          # Your site's JSON data
+│       │   ├── menus.json
+│       │   ├── site-pages.json
+│       │   └── posts.json
+│       ├── models/               # Content type definitions
+│       └── htmlOutput/           # Generated HTML
+├── raytha.config.json            # API sync configuration
+└── README.md
 ```
 
 ## Quick Start
 
-### Step 1 — Deploy Raytha
-Deploy Raytha using the Railway button above so you have a running instance.
+### Step 1 — Initialize a New Project
 
-### Step 2 — Open in Cursor
-Clone this repository and open it in Cursor. The AI will understand the project structure via `.cursor/setup.md`.
-
-### Step 3 — Define Your Content Models
-Edit or create model files in `/models/` to define your content types:
-
-```markdown
-# Articles Content Type
-
-| Label      | Developer Name | Field Type   |
-|------------|----------------|--------------|
-| Title      | title          | single_line_text |
-| Content    | content        | wysiwyg      |
-| Category   | category       | dropdown     |
+```bash
+cd src
+dotnet run -- --site mywebsite
 ```
 
-### Step 4 — Generate Sample Data
-Ask Cursor to generate sample data JSON files based on your models. Sample data goes in `/src/sample-data/` and includes:
-- Content items with realistic fake data
-- Navigation menus
-- Organization and user context
+This creates `/dist/mywebsite/` with:
+- Starter templates copied from `/src/liquid/`
+- Empty `sample-data/` folder for your data
+- Starter content model (`posts.md`)
 
-### Step 5 — Write Liquid Templates
-Create or edit Liquid templates in `/liquid/`. Use the `{% layout %}` tag for template inheritance:
+### Step 2 — Add Sample Data
+
+Create JSON files in `/dist/mywebsite/sample-data/`:
+
+**menus.json** - Navigation menus (auto-generated on init)
+**site-pages.json** - Site pages with widgets
+**posts.json** (or other content types) - Content type data
+
+### Step 3 — Customize Templates
+
+Edit the Liquid templates in `/dist/mywebsite/liquid/`:
+- Page templates: `raytha_html_*.liquid`
+- Widget templates: `widgets/*.liquid`
+
+### Step 4 — Render HTML
+
+```bash
+dotnet run -- --site mywebsite
+```
+
+Generated HTML files appear in `/dist/mywebsite/htmlOutput/`
+
+### Step 5 — Preview and Iterate
+
+Open the HTML files in your browser. Make changes to templates, re-run the simulator, and refresh.
+
+---
+
+## Commands
+
+```bash
+# Initialize or render a project
+dotnet run -- --site <name>
+
+# Render the default project
+dotnet run
+
+# Render and sync to Raytha
+dotnet run -- --site mywebsite --sync
+
+# Only sync templates (no render)
+dotnet run -- --site mywebsite --sync-only
+
+# Custom output directory
+dotnet run -- --site mywebsite -o /path/to/output
+
+# Show help
+dotnet run -- --help
+```
+
+---
+
+## Sample Data Files
+
+### menus.json
+
+Navigation menus used by templates:
+
+```json
+{
+  "menus": [
+    {
+      "Id": "main-menu",
+      "Label": "Main Menu",
+      "DeveloperName": "main_menu",
+      "IsMainMenu": true,
+      "MenuItems": [
+        { "Id": "1", "Label": "Home", "Url": "/", "Ordinal": 1 },
+        { "Id": "2", "Label": "About", "Url": "/about", "Ordinal": 2 }
+      ]
+    }
+  ]
+}
+```
+
+### site-pages.json
+
+Site pages with widget sections:
+
+```json
+{
+  "CurrentOrganization": { "OrganizationName": "My Site", "TimeZone": "UTC" },
+  "PathBase": "",
+  "pages": [
+    {
+      "id": "home",
+      "title": "Home",
+      "routePath": "home",
+      "webTemplateDeveloperName": "raytha_html_home",
+      "publishedWidgets": {
+        "hero": [
+          {
+            "id": "widget-1",
+            "widgetType": "hero",
+            "row": 1,
+            "column": 1,
+            "columnSpan": 12,
+            "settingsJson": "{\"headline\": \"Welcome\", \"subheadline\": \"...\"}"
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+### Content Type Files (e.g., posts.json)
+
+Content items with list and detail views:
+
+```json
+{
+  "liquid_file": "raytha_html_content_item_list",
+  "ContentType": { "LabelPlural": "Posts", "DeveloperName": "posts" },
+  "Target": {
+    "Items": [
+      {
+        "detail_liquid_file": "raytha_html_content_item_detail",
+        "PrimaryField": "My Post",
+        "RoutePath": "posts_my-post",
+        "PublishedContent": { "content": { "Text": "..." } }
+      }
+    ]
+  }
+}
+```
+
+---
+
+## Widget Templates
+
+Widget templates live in `liquid/widgets/` and are rendered via `render_section()`:
+
+| Widget | File | Description |
+|--------|------|-------------|
+| Hero | `hero.liquid` | Large banner with headline and CTA |
+| WYSIWYG | `wysiwyg.liquid` | Rich text content block |
+| CTA | `cta.liquid` | Call-to-action section |
+| Card | `card.liquid` | Single card with image and button |
+| Image+Text | `imagetext.liquid` | Image alongside text content |
+| FAQ | `faq.liquid` | Expandable accordion |
+| Embed | `embed.liquid` | iframe or HTML embed |
+| Content List | `contentlist.liquid` | Dynamic content type listing |
+
+### Using Widgets in Templates
 
 ```liquid
-{% layout 'raytha_html_base_layout' %}
-<div class="container">
-  <h1>{{ Target.PrimaryField }}</h1>
-  {{ Target.PublishedContent.content.Text }}
-</div>
-```
-
-### Step 6 — Run the Simulator
-```bash
-cd src
-dotnet run
-```
-
-This renders all sample data files to HTML in the `/html/` directory.
-
-### Step 7 — Preview and Iterate
-Open the generated HTML files in your browser. If changes are needed:
-1. Update the Liquid templates
-2. Re-run the simulator
-3. Refresh your browser
-
-### Step 8 — Deploy to Raytha
-Once satisfied, you have two options:
-
-**Option A: Manual Copy**
-Copy your Liquid templates into Raytha's template editor.
-
-**Option B: Auto-Sync via API** (Recommended)
-Configure `raytha.config.json` to automatically sync templates to Raytha:
-
-```bash
-# Copy the example config
-cp raytha.config.example.json raytha.config.json
-
-# Edit and add your API key and theme developer name
-```
-
-Then run with the `--sync` flag:
-```bash
-cd src
-dotnet run -- --sync      # Render and sync to Raytha
-dotnet run -- --sync-only # Only sync (skip rendering)
+{{ render_section("hero") }}
+{{ render_section("features") }}
 ```
 
 ---
 
 ## Raytha API Sync
 
-The simulator can automatically sync your Liquid templates to a running Raytha instance via the API.
+Sync templates to a running Raytha instance.
 
 ### Configuration
 
-Create `raytha.config.json` in the project root (copy from `raytha.config.example.json`):
+Create `raytha.config.json` in the project root:
 
 ```json
 {
@@ -138,129 +224,47 @@ Create `raytha.config.json` in the project root (copy from `raytha.config.exampl
 }
 ```
 
-### Configuration Options
-
-| Option | Description |
-|--------|-------------|
-| `baseUrl` | Raytha instance URL (default: `http://localhost:5000`) |
-| `apiKey` | Your Raytha API key (get from Admin → Settings → API Keys) |
-| `themeDeveloperName` | Developer name of your theme (must already exist in Raytha) |
-| `autoSync` | When `true`, sync automatically after every render |
-
-### How Templates Are Discovered
-
-Templates are **automatically discovered** from the `liquid/` directory:
-
-- **Developer name** = filename without `.liquid` extension (e.g., `raytha_html_home.liquid` → `raytha_html_home`)
-- **Parent layout** = extracted from `{% layout 'name' %}` tag in the file
-- **Is base layout** = `true` if template contains `{% renderbody %}`
-- **Label** = auto-generated from filename (e.g., `raytha_html_home` → "Raytha Html Home")
-
-### Optional: Override Labels
-
-If you want custom labels in Raytha admin, add a `templates` section to your config:
-
-```json
-{
-  "baseUrl": "http://localhost:5000",
-  "apiKey": "YOUR_API_KEY_HERE",
-  "themeDeveloperName": "raytha_default_theme",
-  "autoSync": false,
-  "templates": {
-    "raytha_html_home": {
-      "label": "Homepage Template"
-    }
-  }
-}
-```
-
 ### Sync Commands
 
 ```bash
-cd src
-dotnet run -- --sync       # Render all templates, then sync to Raytha
-dotnet run -- --sync-only  # Only sync templates (skip local rendering)
+# Render and sync
+dotnet run -- --site mywebsite --sync
+
+# Only sync (no render)
+dotnet run -- --site mywebsite --sync-only
 ```
 
-### ⚠️ Important: Local-Only Syntax
+### Important: Local-Only Syntax
 
-The following are **local-only** and automatically transformed when syncing:
+The `{% layout 'name' %}` tag and `.html` in URLs are automatically stripped when syncing:
 
-| Local Syntax | Transformation | Reason |
-|--------------|----------------|--------|
-| `{% layout 'name' %}` | Stripped | Parent relationship sent via API instead |
-| `.html` in URLs | Stripped | Local simulator uses `.html` files, Raytha uses clean URLs |
-
-The `{% renderbody %}` tag works in **both** local simulator and production Raytha.
-
-**Example transformations when syncing:**
 ```liquid
-{% layout 'raytha_html_base_layout' %}     → (removed, parent sent via API)
-href="{{ PathBase }}/{{ Type }}.html"      → href="{{ PathBase }}/{{ Type }}"
+{% layout 'raytha_html_base_layout' %}  → Stripped (parent sent via API)
+href="{{ PathBase }}/about.html"        → href="{{ PathBase }}/about"
 ```
 
 ---
 
-## Simulator Details
+## Multiple Projects
 
-The simulator is a .NET 10 console app that uses the Fluid templating engine (same as Raytha).
+Create separate sites for different projects:
 
-### Features
-- **Template inheritance** via `{% layout 'template_name' %}`
-- **Custom Raytha filters**: `attachment_redirect_url`, `attachment_public_url`, `organization_time`, `groupby`, `json`
-- **Custom functions**: `get_content_items()`, `get_main_menu()`, `get_menu()`, etc.
-- **Automatic detail page generation** for each content item with `detail_liquid_file`
-
-### Sample Data Format
-Each JSON file specifies:
-- `liquid_file` — which template to use for rendering
-- `Target` — the main data object (list or single item)
-- `ContentType`, `CurrentOrganization`, `CurrentUser`, `PathBase`
-
-Items can specify `detail_liquid_file` to generate individual detail pages:
-
-```json
-{
-  "liquid_file": "raytha_html_content_item_list",
-  "Target": {
-    "Items": [
-      {
-        "detail_liquid_file": "raytha_html_content_item_detail",
-        "PrimaryField": "My Article",
-        "RoutePath": "articles_my-article.html",
-        ...
-      }
-    ]
-  }
-}
-```
-
-### Running the Simulator
 ```bash
-cd src
-dotnet run                    # Render all sample data files
-dotnet run -- posts.json      # Render a specific file
-dotnet run -- --help          # Show help
+dotnet run -- --site client-a
+dotnet run -- --site client-b
+dotnet run -- --site portfolio
 ```
+
+Each lives in its own folder under `/dist/` with independent templates and data.
 
 ---
 
 ## Cursor AI Integration
 
-The `.cursor/setup.md` file instructs Cursor how to work with this repository:
-- Focus on Liquid templates in `/liquid/`
-- Generate sample data from `/models/`
-- Run the simulator to preview changes
-- Use CDNs for CSS/JS (Bootstrap, etc.)
-- Use placeholder images that work in the simulator
+The `.cursor/` folder contains instructions for Cursor AI to:
+- Generate sample data based on your site description
+- Create and customize Liquid templates
+- Define content type models
+- Help with widget configurations
 
----
-
-## Summary
-
-1. Define content models in `/models/`
-2. Generate sample data in `/src/sample-data/`
-3. Write Liquid templates in `/liquid/`
-4. Run `dotnet run` in `/src/` to generate HTML
-5. Preview HTML files and iterate
-6. Copy final Liquid templates to Raytha
+Simply describe your website and let Cursor help you build it!

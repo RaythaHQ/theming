@@ -6,6 +6,7 @@ using RaythaSimulator.Models;
 // Parse command line arguments
 string? sampleDataFile = null;
 string? outputPath = null;
+string siteName = "default";
 bool renderAll = false;
 bool syncOnly = false;
 bool forceSync = false;
@@ -21,6 +22,18 @@ for (int i = 0; i < args.Length; i++)
         else
         {
             Console.Error.WriteLine("Error: --output requires a path argument");
+            return 1;
+        }
+    }
+    else if (args[i] == "--site")
+    {
+        if (i + 1 < args.Length)
+        {
+            siteName = args[++i];
+        }
+        else
+        {
+            Console.Error.WriteLine("Error: --site requires a name argument");
             return 1;
         }
     }
@@ -51,10 +64,36 @@ for (int i = 0; i < args.Length; i++)
 // Determine directories
 var workingDir = Directory.GetCurrentDirectory();
 var projectRoot = FindProjectRoot(workingDir);
-var liquidDir = Path.Combine(projectRoot, "liquid");
-var defaultSampleDataDir = Path.Combine(projectRoot, "src", "sample-data");
-var htmlDir = outputPath ?? Path.Combine(projectRoot, "html");
+
+// Source directories (starter templates that never change)
+var srcDir = Path.Combine(projectRoot, "src");
+var srcLiquidDir = Path.Combine(srcDir, "liquid");
+var srcModelsDir = Path.Combine(srcDir, "models");
+
+// Project directories (in /dist/<site>/)
+var distDir = Path.Combine(projectRoot, "dist");
+var siteDir = Path.Combine(distDir, siteName);
+var siteLiquidDir = Path.Combine(siteDir, "liquid");
+var siteModelsDir = Path.Combine(siteDir, "models");
+var siteSampleDataDir = Path.Combine(siteDir, "sample-data");
+var siteHtmlOutputDir = outputPath ?? Path.Combine(siteDir, "htmlOutput");
+
 var configPath = Path.Combine(projectRoot, "raytha.config.json");
+
+// Initialize project if it doesn't exist
+if (!Directory.Exists(siteDir))
+{
+    Console.WriteLine($"Initializing new project: {siteName}");
+    InitializeProject(siteDir, srcLiquidDir, srcModelsDir, siteLiquidDir, siteModelsDir, siteSampleDataDir, siteHtmlOutputDir);
+    Console.WriteLine();
+    Console.WriteLine("Project initialized! Next steps:");
+    Console.WriteLine($"  1. Add sample data to: dist/{siteName}/sample-data/");
+    Console.WriteLine($"  2. Customize templates in: dist/{siteName}/liquid/");
+    Console.WriteLine($"  3. Define content models in: dist/{siteName}/models/");
+    Console.WriteLine($"  4. Run 'dotnet run -- --site {siteName}' to render");
+    Console.WriteLine();
+    return 0;
+}
 
 // Load Raytha config if present
 RaythaConfig? config = null;
@@ -86,23 +125,38 @@ if (syncOnly)
         return 1;
     }
 
-    return await SyncTemplates(config, liquidDir);
+    return await SyncTemplates(config, siteLiquidDir);
 }
 
-if (!Directory.Exists(liquidDir))
+if (!Directory.Exists(siteLiquidDir))
 {
-    Console.Error.WriteLine($"Error: Liquid templates directory not found: {liquidDir}");
+    Console.Error.WriteLine($"Error: Liquid templates directory not found: {siteLiquidDir}");
+    Console.Error.WriteLine($"Run 'dotnet run -- --site {siteName}' first to initialize the project.");
     return 1;
 }
 
+// Check if sample-data has any files
+if (!Directory.Exists(siteSampleDataDir) || !Directory.GetFiles(siteSampleDataDir, "*.json").Any())
+{
+    Console.Error.WriteLine($"Warning: No sample data found in: {siteSampleDataDir}");
+    Console.Error.WriteLine("Add menus.json and site-pages.json (or content type files) to render templates.");
+    Console.Error.WriteLine();
+}
+
 // Ensure output directory exists
-Directory.CreateDirectory(htmlDir);
+Directory.CreateDirectory(siteHtmlOutputDir);
+
+Console.WriteLine($"=== Rendering Site: {siteName} ===");
+Console.WriteLine($"Templates: dist/{siteName}/liquid/");
+Console.WriteLine($"Data: dist/{siteName}/sample-data/");
+Console.WriteLine($"Output: dist/{siteName}/htmlOutput/");
+Console.WriteLine();
 
 // Render templates
 int renderResult;
 if (renderAll || string.IsNullOrEmpty(sampleDataFile))
 {
-    renderResult = RenderAllSampleData(defaultSampleDataDir, liquidDir, htmlDir);
+    renderResult = RenderAllSampleData(siteSampleDataDir, siteLiquidDir, siteHtmlOutputDir);
 }
 else
 {
@@ -112,8 +166,7 @@ else
         Console.Error.WriteLine($"Error: Sample data file not found: {sampleDataPath}");
         return 1;
     }
-    var sampleDataDir = Path.GetDirectoryName(sampleDataPath) ?? projectRoot;
-    renderResult = RenderSampleDataFile(sampleDataPath, liquidDir, sampleDataDir, htmlDir);
+    renderResult = RenderSampleDataFile(sampleDataPath, siteLiquidDir, siteSampleDataDir, siteHtmlOutputDir);
 }
 
 // Sync to Raytha if enabled
@@ -126,7 +179,7 @@ if (shouldSync && config != null)
     }
     else
     {
-        var syncResult = await SyncTemplates(config, liquidDir);
+        var syncResult = await SyncTemplates(config, siteLiquidDir);
         if (syncResult != 0 && renderResult == 0)
         {
             renderResult = syncResult;
@@ -139,6 +192,75 @@ else if (forceSync && config == null)
 }
 
 return renderResult;
+
+static void InitializeProject(string siteDir, string srcLiquidDir, string srcModelsDir,
+    string siteLiquidDir, string siteModelsDir, string siteSampleDataDir, string siteHtmlOutputDir)
+{
+    // Create directory structure
+    Directory.CreateDirectory(siteDir);
+    Directory.CreateDirectory(siteLiquidDir);
+    Directory.CreateDirectory(siteModelsDir);
+    Directory.CreateDirectory(siteSampleDataDir);
+    Directory.CreateDirectory(siteHtmlOutputDir);
+
+    // Copy liquid templates
+    if (Directory.Exists(srcLiquidDir))
+    {
+        CopyDirectory(srcLiquidDir, siteLiquidDir);
+        Console.WriteLine($"  Copied starter templates to liquid/");
+    }
+
+    // Copy starter models
+    if (Directory.Exists(srcModelsDir))
+    {
+        CopyDirectory(srcModelsDir, siteModelsDir);
+        Console.WriteLine($"  Copied starter models to models/");
+    }
+
+    // Create placeholder menus.json
+    var menusPath = Path.Combine(siteSampleDataDir, "menus.json");
+    var starterMenus = new
+    {
+        menus = new[]
+        {
+            new
+            {
+                Id = "main-menu",
+                Label = "Main Menu",
+                DeveloperName = "main_menu",
+                IsMainMenu = true,
+                MenuItems = new[]
+                {
+                    new { Id = "menu-1", Label = "Home", Url = "/", Ordinal = 1, IsFirstItem = true, IsLastItem = false },
+                    new { Id = "menu-2", Label = "About", Url = "/about", Ordinal = 2, IsFirstItem = false, IsLastItem = false },
+                    new { Id = "menu-3", Label = "Contact", Url = "/contact", Ordinal = 3, IsFirstItem = false, IsLastItem = true }
+                }
+            }
+        }
+    };
+    File.WriteAllText(menusPath, JsonSerializer.Serialize(starterMenus, new JsonSerializerOptions { WriteIndented = true }));
+    Console.WriteLine($"  Created starter menus.json");
+
+    Console.WriteLine($"  Created sample-data/ (add your site's data here)");
+    Console.WriteLine($"  Created htmlOutput/ (generated HTML will go here)");
+}
+
+static void CopyDirectory(string sourceDir, string destDir)
+{
+    Directory.CreateDirectory(destDir);
+
+    foreach (var file in Directory.GetFiles(sourceDir))
+    {
+        var destFile = Path.Combine(destDir, Path.GetFileName(file));
+        File.Copy(file, destFile, overwrite: true);
+    }
+
+    foreach (var dir in Directory.GetDirectories(sourceDir))
+    {
+        var destSubDir = Path.Combine(destDir, Path.GetFileName(dir));
+        CopyDirectory(dir, destSubDir);
+    }
+}
 
 static async Task<int> SyncTemplates(RaythaConfig config, string liquidDir)
 {
@@ -163,25 +285,22 @@ static int RenderAllSampleData(string sampleDataDir, string liquidDir, string ht
         return 1;
     }
 
-    var jsonFiles = Directory.GetFiles(sampleDataDir, "*.json")
-        .Where(f => !Path.GetFileName(f).Equals("menus.json", StringComparison.OrdinalIgnoreCase))
-        .ToList();
-
-    if (jsonFiles.Count == 0)
-    {
-        Console.Error.WriteLine("Error: No sample data files found (excluding menus.json)");
-        return 1;
-    }
-
-    Console.WriteLine($"Found {jsonFiles.Count} sample data file(s) to render");
-    Console.WriteLine();
-
     int successCount = 0;
     int failCount = 0;
 
-    foreach (var jsonFile in jsonFiles)
+    // Reserved files that aren't content type data
+    var reservedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
-        var result = RenderSampleDataFile(jsonFile, liquidDir, sampleDataDir, htmlDir);
+        "menus.json",
+        "site-pages.json"
+    };
+
+    // Render Site Pages first
+    var sitePagesPath = Path.Combine(sampleDataDir, "site-pages.json");
+    if (File.Exists(sitePagesPath))
+    {
+        Console.WriteLine("--- Site Pages ---");
+        var result = RenderSitePages(sitePagesPath, liquidDir, sampleDataDir, htmlDir);
         if (result == 0)
             successCount++;
         else
@@ -189,27 +308,152 @@ static int RenderAllSampleData(string sampleDataDir, string liquidDir, string ht
         Console.WriteLine();
     }
 
+    // Render Content Type data files
+    var jsonFiles = Directory.GetFiles(sampleDataDir, "*.json")
+        .Where(f => !reservedFiles.Contains(Path.GetFileName(f)))
+        .ToList();
+
+    if (jsonFiles.Count > 0)
+    {
+        Console.WriteLine("--- Content Types ---");
+        Console.WriteLine($"Found {jsonFiles.Count} content type file(s)");
+        Console.WriteLine();
+
+        foreach (var jsonFile in jsonFiles)
+        {
+            var result = RenderSampleDataFile(jsonFile, liquidDir, sampleDataDir, htmlDir);
+            if (result == 0)
+                successCount++;
+            else
+                failCount++;
+            Console.WriteLine();
+        }
+    }
+
+    if (successCount == 0 && failCount == 0)
+    {
+        Console.WriteLine("No data files to render.");
+        Console.WriteLine("Add site-pages.json and/or content type JSON files to sample-data/");
+        return 0;
+    }
+
     Console.WriteLine($"Rendering complete: {successCount} succeeded, {failCount} failed");
     return failCount > 0 ? 1 : 0;
+}
+
+static int RenderSitePages(string sitePagesPath, string liquidDir, string sampleDataDir, string htmlDir)
+{
+    try
+    {
+        Console.WriteLine($"Loading: {Path.GetFileName(sitePagesPath)}");
+        var json = File.ReadAllText(sitePagesPath);
+        var sitePagesData = JsonSerializer.Deserialize<SitePagesData>(json);
+
+        if (sitePagesData?.Pages == null || sitePagesData.Pages.Count == 0)
+        {
+            Console.WriteLine("  No site pages found");
+            return 0;
+        }
+
+        var timeZone = sitePagesData.CurrentOrganization?.TimeZone ?? "UTC";
+        var renderEngine = new RenderEngine(liquidDir, sampleDataDir, timeZone);
+
+        Console.WriteLine($"  Rendering {sitePagesData.Pages.Count} page(s)...");
+
+        foreach (var page in sitePagesData.Pages)
+        {
+            try
+            {
+                RenderSitePage(page, sitePagesData, renderEngine, liquidDir, htmlDir);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"    Error: {page.Title} - {ex.Message}");
+            }
+        }
+
+        return 0;
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"Error: {ex.Message}");
+        return 1;
+    }
+}
+
+static void RenderSitePage(SitePageModel page, SitePagesData sitePagesData, RenderEngine renderEngine, string liquidDir, string htmlDir)
+{
+    var templateName = page.WebTemplateDeveloperName;
+    if (!templateName.EndsWith(".liquid", StringComparison.OrdinalIgnoreCase))
+    {
+        templateName += ".liquid";
+    }
+
+    var templatePath = Path.Combine(liquidDir, templateName);
+    if (!File.Exists(templatePath))
+    {
+        throw new FileNotFoundException($"Template not found: {templatePath}");
+    }
+
+    var templateSource = File.ReadAllText(templatePath);
+
+    // Create context for the site page
+    var context = new SimulatorContext
+    {
+        Target = new Dictionary<string, object?>
+        {
+            ["Id"] = page.Id,
+            ["Title"] = page.Title,
+            ["RoutePath"] = page.RoutePath,
+            ["IsPublished"] = page.IsPublished,
+            ["CreationTime"] = page.CreationTime
+        },
+        CurrentOrganization = sitePagesData.CurrentOrganization ?? new OrganizationModel { OrganizationName = "Sample Organization" },
+        CurrentUser = sitePagesData.CurrentUser ?? new UserModel(),
+        PathBase = sitePagesData.PathBase,
+        QueryParams = new Dictionary<string, string>()
+    };
+
+    // Convert widgets to render data format
+    Dictionary<string, List<SitePageWidgetRenderData>>? widgets = null;
+    if (page.PublishedWidgets != null)
+    {
+        widgets = page.PublishedWidgets.ToDictionary(
+            kvp => kvp.Key,
+            kvp => kvp.Value.Select(SitePageWidgetRenderData.FromModel).ToList()
+        );
+    }
+
+    // Render the page with widgets
+    var html = renderEngine.RenderAsHtml(templateSource, context, widgets);
+
+    // Determine output filename
+    var outputFileName = string.IsNullOrEmpty(page.RoutePath) || page.RoutePath == "home"
+        ? "index.html"
+        : $"{page.RoutePath}.html";
+    var outputFilePath = Path.Combine(htmlDir, outputFileName);
+
+    File.WriteAllText(outputFilePath, html);
+    Console.WriteLine($"    {page.Title} -> {outputFileName}");
 }
 
 static int RenderSampleDataFile(string sampleDataPath, string liquidDir, string sampleDataDir, string htmlDir)
 {
     try
     {
-        Console.WriteLine($"Loading sample data from: {sampleDataPath}");
+        Console.WriteLine($"Loading: {Path.GetFileName(sampleDataPath)}");
         var json = File.ReadAllText(sampleDataPath);
         var sampleData = JsonSerializer.Deserialize<SampleData>(json);
 
         if (sampleData == null)
         {
-            Console.Error.WriteLine("Error: Failed to parse sample data JSON");
+            Console.Error.WriteLine("  Error: Failed to parse JSON");
             return 1;
         }
 
         if (string.IsNullOrEmpty(sampleData.LiquidFile))
         {
-            Console.Error.WriteLine("Error: Sample data must specify 'liquid_file' property");
+            Console.Error.WriteLine("  Error: Missing 'liquid_file' property");
             return 1;
         }
 
@@ -227,10 +471,10 @@ static int RenderSampleDataFile(string sampleDataPath, string liquidDir, string 
     }
     catch (Exception ex)
     {
-        Console.Error.WriteLine($"Error: {ex.Message}");
+        Console.Error.WriteLine($"  Error: {ex.Message}");
         if (ex.InnerException != null)
         {
-            Console.Error.WriteLine($"  Inner: {ex.InnerException.Message}");
+            Console.Error.WriteLine($"    Inner: {ex.InnerException.Message}");
         }
         return 1;
     }
@@ -247,22 +491,20 @@ static void RenderMainTemplate(SampleData sampleData, RenderEngine renderEngine,
     var templatePath = Path.Combine(liquidDir, liquidFile);
     if (!File.Exists(templatePath))
     {
-        throw new FileNotFoundException($"Template file not found: {templatePath}");
+        throw new FileNotFoundException($"Template not found: {templatePath}");
     }
 
-    Console.WriteLine($"Loading template: {templatePath}");
     var templateSource = File.ReadAllText(templatePath);
-
     var context = SimulatorContext.FromSampleData(sampleData);
 
-    Console.WriteLine("Rendering list/main template...");
+    Console.WriteLine($"  Rendering list template...");
     var html = renderEngine.RenderAsHtml(templateSource, context);
 
     var outputFileName = $"{inputFileName}.html";
     var outputFilePath = Path.Combine(htmlDir, outputFileName);
 
     File.WriteAllText(outputFilePath, html);
-    Console.WriteLine($"Output written to: {outputFilePath}");
+    Console.WriteLine($"    -> {outputFileName}");
 }
 
 static void RenderDetailPages(SampleData sampleData, RenderEngine renderEngine, string liquidDir, string htmlDir)
@@ -285,7 +527,7 @@ static void RenderDetailPages(SampleData sampleData, RenderEngine renderEngine, 
         return;
     }
 
-    Console.WriteLine($"Rendering {itemsWithDetailTemplate.Count} detail page(s)...");
+    Console.WriteLine($"  Rendering {itemsWithDetailTemplate.Count} detail page(s)...");
 
     // Cache loaded templates
     var templateCache = new Dictionary<string, string>();
@@ -305,7 +547,7 @@ static void RenderDetailPages(SampleData sampleData, RenderEngine renderEngine, 
             var detailTemplatePath = Path.Combine(liquidDir, detailLiquidFile);
             if (!File.Exists(detailTemplatePath))
             {
-                Console.Error.WriteLine($"  Warning: Detail template not found: {detailTemplatePath}");
+                Console.Error.WriteLine($"    Warning: Template not found: {detailLiquidFile}");
                 continue;
             }
             detailTemplateSource = File.ReadAllText(detailTemplatePath);
@@ -338,7 +580,7 @@ static void RenderDetailPages(SampleData sampleData, RenderEngine renderEngine, 
 
         var outputFilePath = Path.Combine(htmlDir, outputFileName);
         File.WriteAllText(outputFilePath, html);
-        Console.WriteLine($"  - {outputFileName}");
+        Console.WriteLine($"    -> {outputFileName}");
     }
 }
 
@@ -346,45 +588,38 @@ static void PrintUsage()
 {
     Console.WriteLine("Raytha Template Simulator");
     Console.WriteLine();
-    Console.WriteLine("Usage: dotnet run [options] [sample-data.json]");
-    Console.WriteLine();
-    Console.WriteLine("Arguments:");
-    Console.WriteLine("  <sample-data.json>    Path to a specific sample data JSON file (optional)");
+    Console.WriteLine("Usage: dotnet run -- [options]");
     Console.WriteLine();
     Console.WriteLine("Options:");
-    Console.WriteLine("  -a, --all             Render all sample data files (default if no file specified)");
-    Console.WriteLine("  -o, --output <path>   Output directory for rendered HTML (default: html/)");
+    Console.WriteLine("  --site <name>         Project name (default: 'default')");
+    Console.WriteLine("  -o, --output <path>   Custom output directory for HTML");
     Console.WriteLine("  -s, --sync            Sync templates to Raytha after rendering");
     Console.WriteLine("  --sync-only           Only sync templates (skip rendering)");
     Console.WriteLine("  -h, --help            Show this help message");
     Console.WriteLine();
-    Console.WriteLine("Raytha Sync:");
-    Console.WriteLine("  Configure raytha.config.json in the project root with:");
-    Console.WriteLine("    - baseUrl: Raytha instance URL (default: http://localhost:5000)");
-    Console.WriteLine("    - apiKey: Your Raytha API key");
-    Console.WriteLine("    - themeDeveloperName: The theme's developer name (must exist in Raytha)");
-    Console.WriteLine("    - autoSync: Set to true to sync automatically after each render");
+    Console.WriteLine("Project Structure:");
+    Console.WriteLine("  Projects live in /dist/<site-name>/ with:");
+    Console.WriteLine("    - liquid/           Templates (copied from src/liquid on init)");
+    Console.WriteLine("    - widgets/          Widget templates (in liquid/widgets/)");
+    Console.WriteLine("    - sample-data/      Your site's JSON data files");
+    Console.WriteLine("    - models/           Content type definitions");
+    Console.WriteLine("    - htmlOutput/       Generated HTML files");
     Console.WriteLine();
-    Console.WriteLine("  Templates are auto-discovered from liquid/ directory:");
-    Console.WriteLine("    - Developer name = filename (e.g., my_template.liquid -> my_template)");
-    Console.WriteLine("    - Parent layout = detected from {% layout 'name' %} tag");
-    Console.WriteLine("    - Base layout = detected by presence of {% renderbody %} tag");
+    Console.WriteLine("Getting Started:");
+    Console.WriteLine("  1. Run 'dotnet run -- --site mysite' to initialize a new project");
+    Console.WriteLine("  2. Add sample data (site-pages.json, menus.json, etc.)");
+    Console.WriteLine("  3. Customize templates in dist/mysite/liquid/");
+    Console.WriteLine("  4. Run again to render HTML");
     Console.WriteLine();
-    Console.WriteLine("  Local-only syntax (auto-stripped when syncing):");
-    Console.WriteLine("    - {% layout 'name' %} tag (parent sent via API instead)");
-    Console.WriteLine("    - .html in URLs (local uses files, Raytha uses clean URLs)");
+    Console.WriteLine("Sample Data Files:");
+    Console.WriteLine("  - menus.json          Navigation menus");
+    Console.WriteLine("  - site-pages.json     Site pages with widgets");
+    Console.WriteLine("  - <type>.json         Content type data (e.g., posts.json)");
     Console.WriteLine();
     Console.WriteLine("Examples:");
-    Console.WriteLine("  dotnet run                              # Render all sample data files");
-    Console.WriteLine("  dotnet run -- --all                     # Render all sample data files");
-    Console.WriteLine("  dotnet run -- sample-data/posts.json    # Render single file");
-    Console.WriteLine("  dotnet run -- --output ./output         # Render all to custom directory");
-    Console.WriteLine("  dotnet run -- --sync                    # Render and sync to Raytha");
-    Console.WriteLine("  dotnet run -- --sync-only               # Only sync templates (no render)");
-    Console.WriteLine();
-    Console.WriteLine("Sample Data Format:");
-    Console.WriteLine("  For list views with individual detail pages, include 'detail_liquid_file'");
-    Console.WriteLine("  and set unique 'RoutePath' for each item in Target.Items.");
+    Console.WriteLine("  dotnet run                        # Render default project");
+    Console.WriteLine("  dotnet run -- --site myblog       # Initialize or render 'myblog'");
+    Console.WriteLine("  dotnet run -- --site myblog --sync # Render and sync to Raytha");
 }
 
 static string FindProjectRoot(string startDir)
@@ -392,7 +627,8 @@ static string FindProjectRoot(string startDir)
     var dir = startDir;
     while (dir != null)
     {
-        if (Directory.Exists(Path.Combine(dir, "liquid")) ||
+        // Look for src directory with our code
+        if (Directory.Exists(Path.Combine(dir, "src", "liquid")) ||
             Directory.Exists(Path.Combine(dir, ".git")))
         {
             return dir;

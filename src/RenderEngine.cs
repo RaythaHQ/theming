@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Fluid;
@@ -28,9 +29,17 @@ public partial class RenderEngine
     }
 
     /// <summary>
-    /// Renders a template with the given context
+    /// Renders a template with the given context (for content types)
     /// </summary>
     public string RenderAsHtml(string source, SimulatorContext context)
+    {
+        return RenderAsHtml(source, context, null);
+    }
+
+    /// <summary>
+    /// Renders a template with the given context and optional site page widgets
+    /// </summary>
+    public string RenderAsHtml(string source, SimulatorContext context, Dictionary<string, List<SitePageWidgetRenderData>>? widgets)
     {
         // Check for layout tag and extract it
         var layoutMatch = LayoutTagRegex().Match(source);
@@ -53,14 +62,14 @@ public partial class RenderEngine
         var fluidContext = new TemplateContext(options);
 
         // Set all the context values
-        SetContextValues(fluidContext, context);
+        SetContextValues(fluidContext, context, widgets);
 
         string renderedHtml = template.Render(fluidContext);
 
         // If there's a layout, render it and inject the child content
         if (!string.IsNullOrEmpty(layoutName))
         {
-            renderedHtml = RenderWithLayout(renderedHtml, layoutName, context);
+            renderedHtml = RenderWithLayout(renderedHtml, layoutName, context, widgets);
         }
 
         return renderedHtml;
@@ -69,7 +78,7 @@ public partial class RenderEngine
     /// <summary>
     /// Renders the child content within a parent layout
     /// </summary>
-    private string RenderWithLayout(string childContent, string layoutName, SimulatorContext context)
+    private string RenderWithLayout(string childContent, string layoutName, SimulatorContext context, Dictionary<string, List<SitePageWidgetRenderData>>? widgets)
     {
         // Load the layout template
         var layoutPath = Path.Combine(_liquidDirectory, $"{layoutName}.liquid");
@@ -101,14 +110,14 @@ public partial class RenderEngine
 
         var options = CreateTemplateOptions();
         var fluidContext = new TemplateContext(options);
-        SetContextValues(fluidContext, context);
+        SetContextValues(fluidContext, context, widgets);
 
         string renderedHtml = layoutTemplate.Render(fluidContext);
 
         // Recursively apply parent layout if exists
         if (!string.IsNullOrEmpty(parentLayoutName))
         {
-            renderedHtml = RenderWithLayout(renderedHtml, parentLayoutName, context);
+            renderedHtml = RenderWithLayout(renderedHtml, parentLayoutName, context, widgets);
         }
 
         return renderedHtml;
@@ -130,7 +139,7 @@ public partial class RenderEngine
         return options;
     }
 
-    private void SetContextValues(TemplateContext fluidContext, SimulatorContext context)
+    private void SetContextValues(TemplateContext fluidContext, SimulatorContext context, Dictionary<string, List<SitePageWidgetRenderData>>? widgets)
     {
         // Set main context values
         fluidContext.SetValue("Target", context.Target);
@@ -140,13 +149,20 @@ public partial class RenderEngine
         fluidContext.SetValue("PathBase", context.PathBase);
         fluidContext.SetValue("QueryParams", context.QueryParams);
 
+        // Store widgets in ambient values for render_section/get_section
+        if (widgets != null)
+        {
+            fluidContext.AmbientValues["SitePageWidgets"] = widgets;
+        }
+
         // Set custom functions
         fluidContext.SetValue("get_content_item_by_id", GetContentItemById());
         fluidContext.SetValue("get_content_items", GetContentItems());
         fluidContext.SetValue("get_content_type_by_developer_name", GetContentTypeByDeveloperName());
         fluidContext.SetValue("get_main_menu", GetMainMenu());
         fluidContext.SetValue("get_menu", GetMenuByDeveloperName());
-        fluidContext.SetValue("render_section", RenderSection());
+        fluidContext.SetValue("render_section", RenderSectionFunction(fluidContext));
+        fluidContext.SetValue("get_section", GetSectionFunction(fluidContext));
     }
 
     #region Custom Filters
@@ -444,21 +460,273 @@ public partial class RenderEngine
         });
     }
 
-    private FunctionValue RenderSection()
+    /// <summary>
+    /// Renders widgets for a named section in a Site Page template.
+    /// Usage: {{ render_section("main") }}
+    /// </summary>
+    private FunctionValue RenderSectionFunction(TemplateContext parentContext)
     {
-        return new FunctionValue((args, _) =>
+        return new FunctionValue((args, context) =>
         {
             var sectionName = args.At(0).ToStringValue();
-            // Return a placeholder for the simulator
-            var placeholder = $"""
-                <div class="simulator-section-placeholder" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border: 2px dashed #6c757d; border-radius: 8px; padding: 2rem; text-align: center; margin: 1rem 0;">
-                    <div style="color: #495057; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Section</div>
-                    <div style="color: #212529; font-weight: 600; font-size: 1.25rem;">{sectionName}</div>
-                    <div style="color: #6c757d; font-size: 0.75rem; margin-top: 0.5rem;">Widgets render here in Raytha</div>
-                </div>
-                """;
-            return new ValueTask<FluidValue>(new StringValue(placeholder));
+            if (string.IsNullOrEmpty(sectionName))
+            {
+                return new ValueTask<FluidValue>(new StringValue(string.Empty));
+            }
+
+            // Try to get widgets from ambient values
+            if (!context.AmbientValues.TryGetValue("SitePageWidgets", out var widgetsObj) ||
+                widgetsObj is not Dictionary<string, List<SitePageWidgetRenderData>> allWidgets)
+            {
+                // No widgets available - return placeholder
+                return new ValueTask<FluidValue>(new StringValue(GetSectionPlaceholder(sectionName)));
+            }
+
+            // Get widgets for this section
+            if (!allWidgets.TryGetValue(sectionName, out var sectionWidgets) || !sectionWidgets.Any())
+            {
+                return new ValueTask<FluidValue>(new StringValue(string.Empty));
+            }
+
+            // Sort widgets by Row, then by Column
+            var sortedWidgets = sectionWidgets.OrderBy(w => w.Row).ThenBy(w => w.Column).ToList();
+
+            // Group widgets by Row
+            var widgetsByRow = sortedWidgets.GroupBy(w => w.Row).OrderBy(g => g.Key);
+
+            var htmlBuilder = new StringBuilder();
+
+            foreach (var rowGroup in widgetsByRow)
+            {
+                htmlBuilder.AppendLine("<div class=\"row\">");
+
+                foreach (var widget in rowGroup.OrderBy(w => w.Column))
+                {
+                    var colClass = $"col-md-{widget.ColumnSpan}";
+                    htmlBuilder.AppendLine($"  <div class=\"{colClass}\">");
+
+                    try
+                    {
+                        var renderedWidget = RenderWidget(widget, context);
+                        htmlBuilder.AppendLine(renderedWidget);
+                    }
+                    catch (Exception ex)
+                    {
+                        htmlBuilder.AppendLine($"    <!-- Widget rendering error: {widget.WidgetType} - {ex.Message} -->");
+                    }
+
+                    htmlBuilder.AppendLine("  </div>");
+                }
+
+                htmlBuilder.AppendLine("</div>");
+            }
+
+            return new ValueTask<FluidValue>(new StringValue(htmlBuilder.ToString()));
         });
+    }
+
+    /// <summary>
+    /// Returns raw widget data for a named section, allowing full control over rendering.
+    /// Usage: {% for widget in get_section("sidebar") %}...{% endfor %}
+    /// </summary>
+    private FunctionValue GetSectionFunction(TemplateContext parentContext)
+    {
+        return new FunctionValue((args, context) =>
+        {
+            var sectionName = args.At(0).ToStringValue();
+            if (string.IsNullOrEmpty(sectionName))
+            {
+                return new ValueTask<FluidValue>(new ArrayValue(new List<FluidValue>()));
+            }
+
+            // Try to get widgets from ambient values
+            if (!context.AmbientValues.TryGetValue("SitePageWidgets", out var widgetsObj) ||
+                widgetsObj is not Dictionary<string, List<SitePageWidgetRenderData>> allWidgets)
+            {
+                return new ValueTask<FluidValue>(new ArrayValue(new List<FluidValue>()));
+            }
+
+            // Get widgets for this section
+            if (!allWidgets.TryGetValue(sectionName, out var sectionWidgets) || !sectionWidgets.Any())
+            {
+                return new ValueTask<FluidValue>(new ArrayValue(new List<FluidValue>()));
+            }
+
+            // Sort widgets by Row, then by Column
+            var sortedWidgets = sectionWidgets.OrderBy(w => w.Row).ThenBy(w => w.Column).ToList();
+
+            // Group by row to determine row start/end flags
+            var widgetsByRow = sortedWidgets
+                .GroupBy(w => w.Row)
+                .OrderBy(g => g.Key)
+                .ToDictionary(g => g.Key, g => g.OrderBy(w => w.Column).ToList());
+
+            var widgetArray = new List<FluidValue>();
+
+            foreach (var widget in sortedWidgets)
+            {
+                var rowWidgets = widgetsByRow[widget.Row];
+                var isRowStart = rowWidgets.First() == widget;
+                var isRowEnd = rowWidgets.Last() == widget;
+
+                string renderedContent;
+                var settings = ParseSettings(widget.SettingsJson);
+
+                try
+                {
+                    renderedContent = RenderWidget(widget, context);
+                }
+                catch (Exception ex)
+                {
+                    renderedContent = $"<!-- Widget rendering error: {widget.WidgetType} - {ex.Message} -->";
+                }
+
+                var widgetObj = new ObjectValue(new
+                {
+                    id = widget.Id,
+                    type = widget.WidgetType,
+                    content = renderedContent,
+                    settings = settings,
+                    row = widget.Row,
+                    column = widget.Column,
+                    column_span = widget.ColumnSpan,
+                    css_class = widget.CssClass ?? string.Empty,
+                    html_id = widget.HtmlId ?? string.Empty,
+                    custom_attributes = widget.CustomAttributes ?? string.Empty,
+                    is_row_start = isRowStart,
+                    is_row_end = isRowEnd
+                });
+
+                widgetArray.Add(widgetObj);
+            }
+
+            return new ValueTask<FluidValue>(new ArrayValue(widgetArray));
+        });
+    }
+
+    /// <summary>
+    /// Renders a single widget using its template
+    /// </summary>
+    private string RenderWidget(SitePageWidgetRenderData widget, TemplateContext parentContext)
+    {
+        // Load widget template
+        var widgetTemplatePath = Path.Combine(_liquidDirectory, "widgets", $"{widget.WidgetType}.liquid");
+        if (!File.Exists(widgetTemplatePath))
+        {
+            return $"<!-- Widget template not found: {widget.WidgetType} -->";
+        }
+
+        var templateContent = File.ReadAllText(widgetTemplatePath);
+
+        // Parse widget settings
+        var settings = ParseSettings(widget.SettingsJson);
+
+        // Create widget model
+        var widgetModel = new
+        {
+            id = widget.Id,
+            type = widget.WidgetType,
+            settings = settings,
+            row = widget.Row,
+            column = widget.Column,
+            columnSpan = widget.ColumnSpan,
+            css_class = widget.CssClass ?? string.Empty,
+            html_id = widget.HtmlId ?? string.Empty,
+            custom_attributes = widget.CustomAttributes ?? string.Empty
+        };
+
+        // Parse and render the widget template
+        if (!_parser.TryParse(templateContent, out var template, out var error))
+        {
+            return $"<!-- Widget template parse error: {widget.WidgetType} - {error} -->";
+        }
+
+        var options = CreateTemplateOptions();
+        var widgetContext = new TemplateContext(options);
+        
+        // Copy ambient values from parent
+        foreach (var kv in parentContext.AmbientValues)
+        {
+            widgetContext.AmbientValues[kv.Key] = kv.Value;
+        }
+
+        // Set widget as the main variable
+        widgetContext.SetValue("widget", widgetModel);
+
+        // Also expose the same functions available in main templates
+        widgetContext.SetValue("get_content_item_by_id", GetContentItemById());
+        widgetContext.SetValue("get_content_items", GetContentItems());
+        widgetContext.SetValue("get_content_type_by_developer_name", GetContentTypeByDeveloperName());
+        widgetContext.SetValue("get_main_menu", GetMainMenu());
+        widgetContext.SetValue("get_menu", GetMenuByDeveloperName());
+
+        // Copy parent context values for things like PathBase
+        if (parentContext.GetValue("PathBase") is { } pathBase)
+        {
+            widgetContext.SetValue("PathBase", pathBase.ToObjectValue());
+        }
+
+        return template.Render(widgetContext);
+    }
+
+    /// <summary>
+    /// Parses widget settings JSON into a dictionary
+    /// </summary>
+    private static Dictionary<string, object?> ParseSettings(string settingsJson)
+    {
+        if (string.IsNullOrEmpty(settingsJson))
+        {
+            return new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(settingsJson);
+            return ConvertJsonElementToDictionary(doc.RootElement);
+        }
+        catch
+        {
+            return new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    /// <summary>
+    /// Recursively converts a JsonElement to a Dictionary
+    /// </summary>
+    private static Dictionary<string, object?> ConvertJsonElementToDictionary(JsonElement element)
+    {
+        var dict = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var prop in element.EnumerateObject())
+        {
+            dict[prop.Name] = ConvertJsonValue(prop.Value);
+        }
+        return dict;
+    }
+
+    private static object? ConvertJsonValue(JsonElement element)
+    {
+        return element.ValueKind switch
+        {
+            JsonValueKind.Object => ConvertJsonElementToDictionary(element),
+            JsonValueKind.Array => element.EnumerateArray().Select(ConvertJsonValue).ToList(),
+            JsonValueKind.String => element.GetString(),
+            JsonValueKind.Number => element.TryGetInt64(out var l) ? l : element.GetDouble(),
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Null => null,
+            _ => element.ToString()
+        };
+    }
+
+    private static string GetSectionPlaceholder(string sectionName)
+    {
+        return $"""
+            <div class="simulator-section-placeholder" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border: 2px dashed #6c757d; border-radius: 8px; padding: 2rem; text-align: center; margin: 1rem 0;">
+                <div style="color: #495057; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Section</div>
+                <div style="color: #212529; font-weight: 600; font-size: 1.25rem;">{sectionName}</div>
+                <div style="color: #6c757d; font-size: 0.75rem; margin-top: 0.5rem;">No widgets configured</div>
+            </div>
+            """;
     }
 
     #endregion
@@ -475,4 +743,3 @@ public partial class RenderEngine
         }
     }
 }
-

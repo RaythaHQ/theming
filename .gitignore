@@ -17,5 +17,9 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
-# Generated HTML output (optional - uncomment if you don't want to track)
-# html/
+# Project workspaces - all site projects go here
+# Each project has its own liquid/, sample-data/, models/, htmlOutput/
+dist/
+
+# Raytha config - contains API key, do not commit
+raytha.config.json

@@ -2,35 +2,43 @@
 
 This repository is a local development workspace for Raytha templates with a built-in simulator.
 
-**Key principle:** Write Liquid templates, generate HTML previews via the simulator.
+**Key principle:** Write Liquid templates, generate HTML previews via the simulator. Each site project is isolated in its own folder.
 
 ---
 
 ## Directory Structure
 
 ```
-├── liquid/                              # Liquid templates (PRIMARY FOCUS)
-│   ├── raytha_html_base_layout.liquid   # Base layout (parent template)
-│   ├── raytha_html_home.liquid          # Home page (Site Page with widgets)
-│   ├── raytha_html_page_fullwidth.liquid    # Site Page: single zone layout
-│   ├── raytha_html_page_sidebar.liquid      # Site Page: two-column with sidebar
-│   ├── raytha_html_page_multi.liquid        # Site Page: multiple zones
-│   ├── raytha_html_content_item_list.liquid # Content list view (e.g., Posts list)
-│   ├── raytha_html_content_item_detail.liquid # Content detail view (e.g., single Post)
-│   └── widgets/                         # Widget templates
-│       ├── raytha_widget_hero.liquid
-│       ├── raytha_widget_wysiwyg.liquid
-│       ├── raytha_widget_card.liquid
-│       ├── raytha_widget_cta.liquid
-│       ├── raytha_widget_contentlist.liquid
-│       └── ...
-├── models/                              # Content type definitions (Markdown)
-├── src/
-│   ├── sample-data/                     # Sample data JSON files
-│   └── ...                              # Simulator source code
-├── html/                                # Generated HTML output (DO NOT EDIT)
-└── .cursor/
-    └── setup.md                         # This file
+/raytha-theming/
+├── src/                              # Simulator source (NEVER MODIFY)
+│   ├── liquid/                       # Starter templates (copied to new projects)
+│   │   ├── raytha_html_*.liquid      # Page templates
+│   │   └── widgets/                  # Widget templates
+│   │       ├── hero.liquid
+│   │       ├── wysiwyg.liquid
+│   │       ├── cta.liquid
+│   │       └── ...
+│   ├── models/                       # Starter content model
+│   │   └── posts.md
+│   ├── Program.cs                    # Simulator entry point
+│   ├── RenderEngine.cs               # Liquid rendering engine
+│   └── ...
+├── dist/                             # YOUR PROJECTS (gitignored)
+│   └── <site-name>/                  # Each site is a separate project
+│       ├── liquid/                   # Customized templates
+│       │   ├── raytha_html_*.liquid
+│       │   └── widgets/
+│       ├── sample-data/              # Your site's JSON data
+│       │   ├── menus.json
+│       │   ├── site-pages.json
+│       │   └── posts.json
+│       ├── models/                   # Content type definitions
+│       └── htmlOutput/               # Generated HTML
+├── .cursor/
+│   ├── setup.md                      # This file
+│   └── raytha-template-documentation.md
+├── raytha.config.json                # API sync configuration
+└── README.md
 ```
 
 ---
@@ -46,25 +54,25 @@ Raytha has two categories of templates organized into **Themes**:
 | Template | Purpose | Uses Layout? |
 |----------|---------|--------------|
 | `raytha_html_base_layout` | Parent template with `{% renderbody %}` | No (is the layout) |
-| `raytha_html_home` | **Home page** - Site Page with widget zones | Yes |
-| `raytha_html_page_fullwidth` | **Site Page** - single zone layout | Yes |
+| `raytha_html_home` | **Home page** - Site Page with widget sections | Yes |
+| `raytha_html_page_fullwidth` | **Site Page** - single section layout | Yes |
 | `raytha_html_page_sidebar` | **Site Page** - two-column with sidebar | Yes |
-| `raytha_html_page_multi` | **Site Page** - multiple zones for marketing pages | Yes |
-| `raytha_html_content_item_list` | **Content list** - displays items from a content type (e.g., Posts) | Yes |
-| `raytha_html_content_item_detail` | **Content detail** - single content item view (e.g., one Post) | Yes |
+| `raytha_html_page_multi` | **Site Page** - multiple sections for marketing pages | Yes |
+| `raytha_html_content_item_list` | **Content list** - displays items from a content type | Yes |
+| `raytha_html_content_item_detail` | **Content detail** - single content item view | Yes |
 
-**2. Widget Templates** - Render widgets on Site Pages:
+**2. Widget Templates** - Render widgets on Site Pages (in `liquid/widgets/`):
 
-| Widget | Developer Name | Purpose |
-|--------|----------------|---------|
-| Hero | `raytha_widget_hero` | Large banner sections with headline and CTA |
-| WYSIWYG | `raytha_widget_wysiwyg` | Rich text content blocks |
-| Card | `raytha_widget_card` | Bordered content cards with image and button |
-| CTA | `raytha_widget_cta` | Call-to-action sections |
-| Content List | `raytha_widget_contentlist` | Dynamic lists of content items |
-| Image & Text | `raytha_widget_imagetext` | Side-by-side image and text |
-| FAQ | `raytha_widget_faq` | Frequently asked questions accordion |
-| Embed | `raytha_widget_embed` | Embed external content (videos, maps, etc.) |
+| Widget | File | Purpose |
+|--------|------|---------|
+| Hero | `hero.liquid` | Large banner sections with headline and CTA |
+| WYSIWYG | `wysiwyg.liquid` | Rich text content blocks |
+| Card | `card.liquid` | Bordered content cards with image and button |
+| CTA | `cta.liquid` | Call-to-action sections |
+| Content List | `contentlist.liquid` | Dynamic lists of content items |
+| Image & Text | `imagetext.liquid` | Side-by-side image and text |
+| FAQ | `faq.liquid` | Frequently asked questions accordion |
+| Embed | `embed.liquid` | Embed external content (videos, maps, etc.) |
 
 ### Template Inheritance
 
@@ -83,9 +91,22 @@ The base layout contains:
 
 ## Workflow
 
-### 1. Define Content Models
+### 1. Initialize a New Project
 
-Content models live in `/models/*.md` and define the structure of content types.
+```bash
+cd src
+dotnet run -- --site mywebsite
+```
+
+This creates `/dist/mywebsite/` with:
+- `liquid/` - Starter templates copied from `/src/liquid/`
+- `models/` - Starter content model (posts.md)
+- `sample-data/` - Starter menus.json
+- `htmlOutput/` - Empty (for generated HTML)
+
+### 2. Define Content Models
+
+Content models live in `/dist/<site>/models/*.md` and define the structure of content types.
 
 Format:
 ```markdown
@@ -111,26 +132,79 @@ When creating or updating models, use these field types:
 - `attachment` — File upload
 - `one_to_one_relationship` — Link to another content item
 
-### 2. Generate Sample Data
+### 3. Generate Sample Data
 
-Sample data JSON files in `/src/sample-data/` drive the simulator. Generate them based on the models.
+Sample data JSON files in `/dist/<site>/sample-data/` drive the simulator.
 
-**Structure for Content List Views (e.g., Posts list):**
+**Reserved files:**
+- `menus.json` - Navigation menus
+- `site-pages.json` - Site pages with widgets
+
+**Content type files:** Any other `.json` file (e.g., `posts.json`, `articles.json`)
+
+#### Site Pages (`site-pages.json`)
+
+```json
+{
+  "CurrentOrganization": { "OrganizationName": "My Site", "TimeZone": "UTC" },
+  "PathBase": "",
+  "pages": [
+    {
+      "id": "home-page",
+      "title": "Home",
+      "routePath": "home",
+      "webTemplateDeveloperName": "raytha_html_home",
+      "isPublished": true,
+      "publishedWidgets": {
+        "hero": [
+          {
+            "id": "widget-1",
+            "widgetType": "hero",
+            "row": 1,
+            "column": 1,
+            "columnSpan": 12,
+            "settingsJson": "{\"headline\": \"Welcome\", \"subheadline\": \"Your tagline here\"}"
+          }
+        ],
+        "main": [
+          {
+            "id": "widget-2",
+            "widgetType": "wysiwyg",
+            "row": 1,
+            "column": 1,
+            "columnSpan": 12,
+            "settingsJson": "{\"content\": \"<p>Your content here</p>\"}"
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+**Key fields:**
+- `routePath` - Output filename (`home` → `index.html`, `about` → `about.html`)
+- `webTemplateDeveloperName` - Which template to render
+- `publishedWidgets` - Object with section names as keys, arrays of widgets as values
+- `settingsJson` - JSON string with widget settings
+
+#### Content Type Data (e.g., `posts.json`)
+
 ```json
 {
   "liquid_file": "raytha_html_content_item_list",
   "Target": {
     "Label": "Posts",
-    "RoutePath": "posts.html",
+    "RoutePath": "posts",
     "Items": [
       {
         "detail_liquid_file": "raytha_html_content_item_detail",
         "PrimaryField": "Getting Started with Raytha",
-        "RoutePath": "posts_getting-started.html",
+        "RoutePath": "posts_getting-started",
         "CreationTime": "2024-01-15T10:00:00Z",
         "PublishedContent": {
-          "title": { "Text": "Getting Started with Raytha", "Value": "Getting Started with Raytha" },
-          "content": { "Text": "<p>Welcome to Raytha...</p>", "Value": "<p>Welcome to Raytha...</p>" }
+          "title": { "Text": "Getting Started", "Value": "Getting Started" },
+          "content": { "Text": "<p>Welcome...</p>", "Value": "<p>Welcome...</p>" }
         }
       }
     ],
@@ -145,99 +219,34 @@ Sample data JSON files in `/src/sample-data/` drive the simulator. Generate them
     "DeveloperName": "posts"
   },
   "CurrentOrganization": { "OrganizationName": "My Site" },
-  "CurrentUser": { "IsAuthenticated": false },
-  "PathBase": ".",
-  "QueryParams": {}
+  "PathBase": ""
 }
 ```
 
-**Structure for Site Pages (e.g., Home page with widgets):**
-```json
-{
-  "liquid_file": "raytha_html_home",
-  "Target": {
-    "Id": "home-page-1",
-    "Title": "Home",
-    "RoutePath": "home.html",
-    "IsPublished": true
-  },
-  "Zones": {
-    "hero": [
-      {
-        "widget_template": "raytha_widget_hero",
-        "headline": "Welcome to Our Site",
-        "subheadline": "Build something amazing",
-        "backgroundColor": "#0d6efd",
-        "textColor": "#ffffff",
-        "buttonText": "Get Started",
-        "buttonUrl": "posts.html",
-        "alignment": "center",
-        "minHeight": 500
-      }
-    ],
-    "features": [
-      {
-        "widget_template": "raytha_widget_wysiwyg",
-        "content": "<h2>Our Features</h2><p>Explore what we offer...</p>",
-        "padding": "medium"
-      }
-    ],
-    "cta": [
-      {
-        "widget_template": "raytha_widget_cta",
-        "headline": "Ready to get started?",
-        "buttonText": "Contact Us",
-        "buttonUrl": "contact.html"
-      }
-    ]
-  },
-  "CurrentOrganization": { "OrganizationName": "My Site" },
-  "CurrentUser": { "IsAuthenticated": false },
-  "PathBase": ".",
-  "QueryParams": {}
-}
-```
+#### Menus (`menus.json`)
 
-**Key rules:**
-- `liquid_file` — Template used for the main view
-- `detail_liquid_file` — Per-item, specifies template for detail page (content items only)
-- `widget_template` — For widgets, specifies which widget template to use
-- `Zones` — Object containing arrays of widgets per zone (Site Pages only)
-- `RoutePath` — Output HTML filename (e.g., `posts_getting-started.html`)
-- `PathBase` — Use `"."` for relative links in simulator
-- Fields use `{ "Text": "...", "Value": "..." }` format
-
-**Menus** go in `menus.json`:
 ```json
 {
   "menus": [
     {
-      "DeveloperName": "main",
+      "Id": "main-menu",
+      "Label": "Main Menu",
+      "DeveloperName": "main_menu",
       "IsMainMenu": true,
       "MenuItems": [
-        { "Label": "Home", "Url": "home.html" },
-        { "Label": "Posts", "Url": "posts.html" },
-        { "Label": "About", "Url": "about.html" }
-      ]
-    },
-    {
-      "DeveloperName": "footer",
-      "IsMainMenu": false,
-      "MenuItems": [
-        { "Label": "Privacy Policy", "Url": "privacy.html" },
-        { "Label": "Terms", "Url": "terms.html" }
+        { "Id": "1", "Label": "Home", "Url": "/", "Ordinal": 1 },
+        { "Id": "2", "Label": "Posts", "Url": "/posts", "Ordinal": 2 }
       ]
     }
   ]
 }
 ```
 
-### 3. Write Liquid Templates
+### 4. Write Liquid Templates
 
-Templates live in `/liquid/*.liquid`. Focus your editing here.
+Templates live in `/dist/<site>/liquid/*.liquid`.
 
 **Template inheritance:**
-All child templates must use `{% layout 'template_name' %}` at the top:
 ```liquid
 {% layout 'raytha_html_base_layout' %}
 <div class="container">
@@ -245,7 +254,7 @@ All child templates must use `{% layout 'template_name' %}` at the top:
 </div>
 ```
 
-Parent templates (like base layout) use `{% renderbody %}` to inject child content.
+Parent templates use `{% renderbody %}` to inject child content.
 
 **Available variables:**
 - `Target` — Main content (single item, list with `.Items`, or site page)
@@ -266,7 +275,8 @@ Parent templates (like base layout) use `{% renderbody %}` to inject child conte
 - `get_content_items(ContentType='name', Filter='odata', OrderBy='field desc', PageNumber=1, PageSize=10)` — Query content
 - `get_content_item_by_id(id)` — Get single item
 - `get_content_type_by_developer_name(name)` — Get content type metadata
-- `render_zone "zone_name"` — Render widgets in a zone (Site Pages only)
+- `render_section("section_name")` — Render widgets in a section (Site Pages only)
+- `get_section("section_name")` — Get raw widget data for custom rendering
 
 **Available filters:**
 - `attachment_redirect_url` — Secure attachment URL
@@ -274,73 +284,106 @@ Parent templates (like base layout) use `{% renderbody %}` to inject child conte
 - `organization_time` — Convert to org timezone
 - `groupby: 'field'` — Group items by field
 - `json` — Output as JSON (debugging)
-- `get_navigation_menu` — Retrieve menu by developer name (filter syntax)
 
-### 4. Write Widget Templates
+### 5. Write Widget Templates
 
-Widget templates render individual widgets on Site Pages. Place them in `/liquid/widgets/`.
+Widget templates render individual widgets on Site Pages. Located in `/dist/<site>/liquid/widgets/`.
 
 **Widget template structure:**
 ```liquid
-{% comment %} widgets/raytha_widget_hero.liquid {% endcomment %}
+{% comment %}
+Widget: Hero
+Settings: headline, subheadline, backgroundColor, textColor, buttonText, buttonUrl, alignment, minHeight
+{% endcomment %}
+
 <section class="hero-widget" style="
-  background-color: {{ Target.backgroundColor | default: '#0d6efd' }};
-  color: {{ Target.textColor | default: '#ffffff' }};
-  min-height: {{ Target.minHeight | default: 400 }}px;
+  background-color: {{ widget.settings.backgroundColor | default: '#0d6efd' }};
+  color: {{ widget.settings.textColor | default: '#ffffff' }};
+  min-height: {{ widget.settings.minHeight | default: 400 }}px;
 ">
-  <div class="container py-5 text-{{ Target.alignment | default: 'center' }}">
-    {% if Target.headline != blank %}
-      <h1 class="display-4 fw-bold">{{ Target.headline | escape }}</h1>
+  <div class="container py-5 text-{{ widget.settings.alignment | default: 'center' }}">
+    {% if widget.settings.headline != blank %}
+      <h1 class="display-4 fw-bold">{{ widget.settings.headline | escape }}</h1>
     {% endif %}
     
-    {% if Target.subheadline != blank %}
-      <p class="lead">{{ Target.subheadline | escape }}</p>
+    {% if widget.settings.subheadline != blank %}
+      <p class="lead">{{ widget.settings.subheadline | escape }}</p>
     {% endif %}
     
-    {% if Target.buttonText != blank %}
-      <a href="{{ Target.buttonUrl | default: '#' }}" class="btn btn-light btn-lg">
-        {{ Target.buttonText | escape }}
+    {% if widget.settings.buttonText != blank %}
+      <a href="{{ widget.settings.buttonUrl | default: '#' }}" class="btn btn-light btn-lg">
+        {{ widget.settings.buttonText | escape }}
       </a>
     {% endif %}
   </div>
 </section>
 ```
 
-**Widget template best practices:**
-- Check for blank values: `{% if Target.headline != blank %}`
-- Use defaults: `{{ Target.backgroundColor | default: '#ffffff' }}`
-- Escape user content: `{{ Target.headline | escape }}`
+**Widget context variables:**
+- `widget.id` — Widget instance ID
+- `widget.type` — Widget type (e.g., "hero")
+- `widget.settings.*` — Widget settings from `settingsJson`
+- `widget.row`, `widget.column`, `widget.columnSpan` — Grid position
+- `widget.css_class`, `widget.html_id`, `widget.custom_attributes` — Styling
 
-### 5. Run the Simulator
+**Widget template best practices:**
+- Check for blank values: `{% if widget.settings.headline != blank %}`
+- Use defaults: `{{ widget.settings.backgroundColor | default: '#ffffff' }}`
+- Escape user content: `{{ widget.settings.headline | escape }}`
+
+### 6. Run the Simulator
 
 ```bash
 cd src
-dotnet run
+dotnet run -- --site mywebsite
 ```
 
 This:
-1. Reads all JSON files in `/src/sample-data/` (except `menus.json`)
-2. Renders each using its `liquid_file` template
-3. For content items with `detail_liquid_file`, generates individual detail pages
-4. For Site Pages, renders widgets in zones using widget templates
-5. Outputs HTML to `/html/`
+1. Reads all JSON files in `/dist/mywebsite/sample-data/`
+2. Renders site pages from `site-pages.json`
+3. Renders content types from other JSON files
+4. For content items with `detail_liquid_file`, generates individual detail pages
+5. Outputs HTML to `/dist/mywebsite/htmlOutput/`
 
-### 6. Preview and Iterate
+### 7. Preview and Iterate
 
 Open generated HTML files in a browser. All links should work locally.
 
 To make changes:
-1. Edit Liquid templates in `/liquid/`
-2. Re-run `dotnet run` in `/src/`
+1. Edit templates in `/dist/mywebsite/liquid/`
+2. Re-run `dotnet run -- --site mywebsite`
 3. Refresh browser
 
-### 7. Deploy to Raytha
+### 8. Deploy to Raytha
 
-Copy final Liquid templates from `/liquid/` into Raytha's template editor:
+Copy final templates from `/dist/mywebsite/liquid/` into Raytha's template editor:
 1. Go to **Design → Themes** in the admin
 2. Select your theme
 3. Navigate to **Web Templates** or **Widget Templates**
 4. Create/update templates with your Liquid code
+
+**Note:** Remove `{% layout 'name' %}` tags when copying to Raytha (they're local-only).
+
+---
+
+## Commands Reference
+
+```bash
+# Initialize or render a project
+dotnet run -- --site <name>
+
+# Render the default project
+dotnet run
+
+# Render and sync to Raytha
+dotnet run -- --site mywebsite --sync
+
+# Only sync templates (no render)
+dotnet run -- --site mywebsite --sync-only
+
+# Show help
+dotnet run -- --help
+```
 
 ---
 
@@ -348,35 +391,33 @@ Copy final Liquid templates from `/liquid/` into Raytha's template editor:
 
 | What You're Building | Template to Use | Sample Data Structure |
 |----------------------|-----------------|----------------------|
-| Home page with widgets | `raytha_html_home` | Site Page with `Zones` |
-| About/Contact page with widgets | `raytha_html_page_*` | Site Page with `Zones` |
-| Blog/Posts list | `raytha_html_content_item_list` | Content list with `Target.Items` |
-| Single blog post | `raytha_html_content_item_detail` | Content item (via `detail_liquid_file`) |
-| Articles/Docs list | `raytha_html_content_item_list` | Content list with `Target.Items` |
-| Single article | `raytha_html_content_item_detail` | Content item (via `detail_liquid_file`) |
+| Home page with widgets | `raytha_html_home` | `site-pages.json` with `publishedWidgets` |
+| About/Contact page | `raytha_html_page_*` | `site-pages.json` with `publishedWidgets` |
+| Blog/Posts list | `raytha_html_content_item_list` | Content JSON with `Target.Items` |
+| Single blog post | `raytha_html_content_item_detail` | Via `detail_liquid_file` |
 
 ---
 
 ## Important Rules
 
 ### DO:
-- Focus editing on `/liquid/*.liquid` files
-- Use `{% layout 'raytha_html_base_layout' %}` at the top of all child templates
-- Generate sample data based on `/models/*.md` definitions
+- Initialize projects with `dotnet run -- --site <name>`
+- Focus editing on `/dist/<site>/liquid/*.liquid` files
+- Generate sample data based on `/dist/<site>/models/*.md` definitions
 - Use CDN links for CSS/JS (Bootstrap, etc.)
-- Use `PathBase` of `"."` in sample data for relative links
-- Set `RoutePath` on items to valid HTML filenames
-- Include `detail_liquid_file` on content items that need detail pages
-- Include `widget_template` on widgets to specify their template
+- Set `PathBase` to `""` for root-relative links
+- Set `RoutePath` on items to valid filenames (no `.html` extension needed)
 - Check for blank values in widget templates
 - Use the `default` filter for fallback values
 - Escape user-provided content in widget templates
+- Access widget settings via `widget.settings.*`
 
 ### DO NOT:
-- Edit files in `/html/` directly — they are generated
+- Edit files in `/src/` — they are starter templates
+- Edit files in `/dist/<site>/htmlOutput/` — they are generated
 - Use Liquid syntax that the Fluid engine doesn't support
-- Include actual Liquid `{{ }}` or `{% %}` in content text (it will be parsed)
-- Forget the `{% layout %}` tag in child templates
+- Include actual Liquid `{{ }}` or `{% %}` in content text
+- Forget the `{% layout %}` tag in child templates (for local rendering)
 - Render empty HTML tags for blank widget settings
 
 ---
@@ -409,12 +450,13 @@ In sample data, just use any filename for attachment values.
 
 When working in this repo, Cursor should:
 
-1. **Focus on Liquid templates** — Edit files in `/liquid/`
-2. **Generate sample data from models** — Read `/models/*.md`, create JSON in `/src/sample-data/`
-3. **Run the simulator** — Execute `cd src && dotnet run` to regenerate HTML
-4. **Iterate until correct** — Update Liquid, regenerate, review HTML
-5. **Never edit `/html/` directly** — These are generated outputs
-6. **Always use `{% layout %}` tag** — Every child template needs it for the simulator to work
+1. **Initialize projects** — Run `dotnet run -- --site <name>` to create new projects
+2. **Focus on Liquid templates** — Edit files in `/dist/<site>/liquid/`
+3. **Generate sample data** — Read `/dist/<site>/models/*.md`, create JSON in `/dist/<site>/sample-data/`
+4. **Run the simulator** — Execute `cd src && dotnet run -- --site <name>` to regenerate HTML
+5. **Iterate until correct** — Update Liquid, regenerate, review HTML
+6. **Never edit `/src/`** — These are starter templates
+7. **Never edit `htmlOutput/`** — These are generated outputs
 
 ---
 
@@ -422,38 +464,38 @@ When working in this repo, Cursor should:
 
 ### Creating a Site Page
 
-1. Create sample data JSON with `Zones` containing widget configurations
-2. Use a site page template (e.g., `raytha_html_home`) that uses `render_zone`:
+1. Add page to `site-pages.json` with `publishedWidgets` containing section configurations
+2. Use a site page template that uses `render_section()`:
 
 ```liquid
 {% layout 'raytha_html_base_layout' %}
 
-{{ render_zone "hero" }}
+{{ render_section("hero") }}
 
 <div class="container py-5">
   <div class="row">
     <div class="col-lg-8">
-      {{ render_zone "main" }}
+      {{ render_section("main") }}
     </div>
     <div class="col-lg-4">
-      {{ render_zone "sidebar" }}
+      {{ render_section("sidebar") }}
     </div>
   </div>
 </div>
 ```
 
-3. Create widget templates in `/liquid/widgets/` for each widget type
+3. Customize widget templates in `liquid/widgets/` for each widget type
 
 ### Available Site Page Templates
 
-| Template | Zones | Best For |
-|----------|-------|----------|
+| Template | Sections | Best For |
+|----------|----------|----------|
 | `raytha_html_home` | hero, features, content, cta | Home/landing pages |
 | `raytha_html_page_fullwidth` | main | Simple content pages |
-| `raytha_html_page_sidebar` | main, sidebar | About pages, blog-style pages |
+| `raytha_html_page_sidebar` | main, sidebar | About pages, blog-style |
 | `raytha_html_page_multi` | hero, features, content, cta | Marketing/product pages |
 
-### Available Widget Settings
+### Widget Settings by Type
 
 | Widget | Settings |
 |--------|----------|
@@ -461,4 +503,7 @@ When working in this repo, Cursor should:
 | WYSIWYG | content, padding |
 | Card | title, description, imageUrl, buttonText, buttonUrl, buttonStyle |
 | CTA | headline, content, buttonText, buttonUrl, buttonStyle, backgroundColor, textColor, alignment |
-| Content List | headline, subheadline, contentType, pageSize, displayStyle, showImage, showDate, showExcerpt, linkText, linkUrl, items (array) |
+| Image+Text | headline, content, imageUrl, imagePosition, buttonText, buttonUrl |
+| FAQ | headline, items (array of question/answer) |
+| Embed | embedCode, aspectRatio |
+| Content List | headline, contentType, pageSize, displayStyle, showImage, showDate, showExcerpt |

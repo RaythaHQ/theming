@@ -114,7 +114,7 @@ Every public Raytha page is one of:
 
 - A **list view** of a content type
 - A **detail view** of a single content item
-- A **Site Page** with widget zones
+- A **Site Page** with widget sections
 
 `Target` behavior:
 
@@ -373,14 +373,14 @@ More complete example:
 
 ## 8. Site Pages & Widget Templates
 
-Site Pages allow you to build pages using **widgets** arranged in **zones**.
+Site Pages allow you to build pages using **widgets** arranged in **sections**.
 
 ### 8.1 What is a Site Page?
 
 A Site Page:
 - Has a route path and can be published/unpublished
-- Contains one or more **widget zones** (e.g., "hero", "main", "sidebar")
-- Each zone can contain multiple **widgets**
+- Contains one or more **sections** (e.g., "hero", "main", "sidebar")
+- Each section can contain multiple **widgets**
 - Widgets are rendered using **widget templates**
 
 ### 8.2 Site Page Target variables
@@ -394,149 +394,231 @@ When rendering a Site Page template:
 {{ Target.RoutePath }}
 ```
 
-### 8.3 Rendering widget zones
+### 8.3 Rendering widget sections
 
-Use the `render_zone` function to render widgets in a zone:
+Use the `render_section()` function to render widgets in a section:
 
 ```liquid
-{{ render_zone "hero" }}
-{{ render_zone "main" }}
-{{ render_zone "sidebar" }}
+{{ render_section("hero") }}
+{{ render_section("main") }}
+{{ render_section("sidebar") }}
 ```
 
-### 8.4 Built-in widget types
+The function automatically:
+- Retrieves all widgets assigned to that section
+- Sorts them by row, then column
+- Wraps them in Bootstrap row/column structure
+- Renders each widget using its widget template
 
-| Widget          | Developer Name   | Purpose                                    |
-|-----------------|------------------|--------------------------------------------|
-| **Hero**        | `hero`           | Large banner sections with headline and CTA |
-| **WYSIWYG**     | `wysiwyg`        | Rich text content blocks                   |
-| **Card**        | `card`           | Bordered content cards with image and button |
-| **CTA**         | `cta`            | Call-to-action sections                    |
-| **Content List**| `content_list`   | Dynamic lists of content items             |
+**Optional arguments:**
 
-### 8.5 Widget template Target variables
+```liquid
+{% comment %} Disable automatic row/column wrapper {% endcomment %}
+{{ render_section("hero", wrap=false) }}
 
-Each widget type has its own `Target` context with settings configured by the user.
+{% comment %} Custom CSS classes {% endcomment %}
+{{ render_section("features", row_class="row g-4", col_class="col-lg-4") }}
+```
+
+### 8.4 Getting raw widget data
+
+Use `get_section()` for full control over widget rendering:
+
+```liquid
+{% for widget in get_section("sidebar") %}
+  <div class="widget-wrapper">
+    {{ widget.content }}
+  </div>
+{% endfor %}
+```
+
+Each widget object contains:
+- `widget.id` — Widget instance ID
+- `widget.type` — Widget type developer name
+- `widget.content` — Pre-rendered widget HTML
+- `widget.settings` — Widget settings dictionary
+- `widget.row`, `widget.column`, `widget.column_span`
+- `widget.css_class`, `widget.html_id`, `widget.custom_attributes`
+- `widget.is_row_start`, `widget.is_row_end` — Row boundary flags
+
+### 8.5 Built-in widget types
+
+| Widget          | Developer Name   | File               | Purpose                                    |
+|-----------------|------------------|--------------------|--------------------------------------------|
+| **Hero**        | `hero`           | `hero.liquid`      | Large banner sections with headline and CTA |
+| **WYSIWYG**     | `wysiwyg`        | `wysiwyg.liquid`   | Rich text content blocks                   |
+| **Card**        | `card`           | `card.liquid`      | Bordered content cards with image and button |
+| **CTA**         | `cta`            | `cta.liquid`       | Call-to-action sections                    |
+| **Content List**| `contentlist`    | `contentlist.liquid` | Dynamic lists of content items           |
+| **Image+Text**  | `imagetext`      | `imagetext.liquid` | Side-by-side image and text               |
+| **FAQ**         | `faq`            | `faq.liquid`       | Frequently asked questions accordion       |
+| **Embed**       | `embed`          | `embed.liquid`     | Embed external content (videos, maps)      |
+
+### 8.6 Widget template variables
+
+Widget templates receive a `widget` object with all configuration:
+
+**Common widget properties:**
+```liquid
+{{ widget.id }}              {% comment %} Widget instance ID {% endcomment %}
+{{ widget.type }}            {% comment %} Widget type (e.g., "hero") {% endcomment %}
+{{ widget.row }}             {% comment %} Grid row number {% endcomment %}
+{{ widget.column }}          {% comment %} Grid column number {% endcomment %}
+{{ widget.columnSpan }}      {% comment %} Bootstrap column span (1-12) {% endcomment %}
+{{ widget.css_class }}       {% comment %} Custom CSS class {% endcomment %}
+{{ widget.html_id }}         {% comment %} Custom HTML ID {% endcomment %}
+{{ widget.custom_attributes }} {% comment %} Custom HTML attributes {% endcomment %}
+```
+
+**Widget settings (specific to each widget type):**
+```liquid
+{{ widget.settings.headline }}
+{{ widget.settings.backgroundColor }}
+{{ widget.settings.buttonText }}
+```
+
+### 8.7 Widget settings by type
 
 **Hero Widget:**
 ```liquid
-{{ Target.headline }}
-{{ Target.subheadline }}
-{{ Target.backgroundColor }}
-{{ Target.textColor }}
-{{ Target.buttonText }}
-{{ Target.buttonUrl }}
-{{ Target.buttonStyle }}
-{{ Target.alignment }}
-{{ Target.minHeight }}
-{{ Target.backgroundImage }}
+{{ widget.settings.headline }}
+{{ widget.settings.subheadline }}
+{{ widget.settings.backgroundColor }}
+{{ widget.settings.textColor }}
+{{ widget.settings.buttonText }}
+{{ widget.settings.buttonUrl }}
+{{ widget.settings.buttonStyle }}
+{{ widget.settings.alignment }}
+{{ widget.settings.minHeight }}
+{{ widget.settings.backgroundImage }}
 ```
 
 **WYSIWYG Widget:**
 ```liquid
-{{ Target.content }}
-{{ Target.padding }}
+{{ widget.settings.content }}
+{{ widget.settings.padding }}
 ```
 
 **Card Widget:**
 ```liquid
-{{ Target.title }}
-{{ Target.description }}
-{{ Target.imageUrl }}
-{{ Target.buttonText }}
-{{ Target.buttonUrl }}
-{{ Target.buttonStyle }}
+{{ widget.settings.title }}
+{{ widget.settings.description }}
+{{ widget.settings.imageUrl }}
+{{ widget.settings.buttonText }}
+{{ widget.settings.buttonUrl }}
+{{ widget.settings.buttonStyle }}
 ```
 
 **CTA Widget:**
 ```liquid
-{{ Target.headline }}
-{{ Target.content }}
-{{ Target.buttonText }}
-{{ Target.buttonUrl }}
-{{ Target.buttonStyle }}
-{{ Target.backgroundColor }}
-{{ Target.textColor }}
-{{ Target.alignment }}
+{{ widget.settings.headline }}
+{{ widget.settings.content }}
+{{ widget.settings.buttonText }}
+{{ widget.settings.buttonUrl }}
+{{ widget.settings.buttonStyle }}
+{{ widget.settings.backgroundColor }}
+{{ widget.settings.textColor }}
+{{ widget.settings.alignment }}
+```
+
+**Image+Text Widget:**
+```liquid
+{{ widget.settings.headline }}
+{{ widget.settings.content }}
+{{ widget.settings.imageUrl }}
+{{ widget.settings.imagePosition }}  {% comment %} "left" or "right" {% endcomment %}
+{{ widget.settings.buttonText }}
+{{ widget.settings.buttonUrl }}
+```
+
+**FAQ Widget:**
+```liquid
+{{ widget.settings.headline }}
+{% for item in widget.settings.items %}
+  {{ item.question }}
+  {{ item.answer }}
+{% endfor %}
+```
+
+**Embed Widget:**
+```liquid
+{{ widget.settings.embedCode }}
+{{ widget.settings.aspectRatio }}
 ```
 
 **Content List Widget:**
 ```liquid
-{{ Target.headline }}
-{{ Target.subheadline }}
-{{ Target.contentType }}
-{{ Target.pageSize }}
-{{ Target.displayStyle }}
-{{ Target.showImage }}
-{{ Target.showDate }}
-{{ Target.showExcerpt }}
-{{ Target.linkText }}
-{{ Target.linkUrl }}
-
-{% for item in Target.items %}
-  {{ item.Id }}
-  {{ item.PrimaryField }}
-  {{ item.RoutePath }}
-  {{ item.CreationTime }}
-  {{ item.PublishedContent.field_name }}
-{% endfor %}
+{{ widget.settings.headline }}
+{{ widget.settings.subheadline }}
+{{ widget.settings.contentType }}
+{{ widget.settings.pageSize }}
+{{ widget.settings.displayStyle }}
+{{ widget.settings.showImage }}
+{{ widget.settings.showDate }}
+{{ widget.settings.showExcerpt }}
+{{ widget.settings.linkText }}
+{{ widget.settings.linkUrl }}
 ```
 
-### 8.6 Widget template best practices
+### 8.8 Widget template best practices
 
 **Check for blank values:**
 ```liquid
-{% if Target.headline != blank %}
-  <h2>{{ Target.headline }}</h2>
+{% if widget.settings.headline != blank %}
+  <h2>{{ widget.settings.headline }}</h2>
 {% endif %}
 ```
 
 **Provide default values:**
 ```liquid
-<section style="background-color: {{ Target.backgroundColor | default: '#ffffff' }};">
+<section style="background-color: {{ widget.settings.backgroundColor | default: '#ffffff' }};">
   ...
 </section>
 ```
 
 **Escape user content:**
 ```liquid
-<h1>{{ Target.headline | escape }}</h1>
+<h1>{{ widget.settings.headline | escape }}</h1>
 ```
 
-### 8.7 Complete Hero widget example
+### 8.9 Complete Hero widget example
 
 ```liquid
+{% comment %}
+Widget: Hero
+Settings: headline, subheadline, backgroundColor, textColor, buttonText, buttonUrl, buttonStyle, alignment, minHeight, backgroundImage
+{% endcomment %}
+
 <section class="hero-widget" style="
-  background-color: {{ Target.backgroundColor | default: '#0d6efd' }};
-  color: {{ Target.textColor | default: '#ffffff' }};
-  min-height: {{ Target.minHeight | default: 400 }}px;
-  {% if Target.backgroundImage != blank %}
-  background-image: url('{{ Target.backgroundImage }}');
+  background-color: {{ widget.settings.backgroundColor | default: '#0d6efd' }};
+  color: {{ widget.settings.textColor | default: '#ffffff' }};
+  min-height: {{ widget.settings.minHeight | default: 400 }}px;
+  {% if widget.settings.backgroundImage != blank %}
+  background-image: url('{{ widget.settings.backgroundImage }}');
   background-size: cover;
   background-position: center;
   {% endif %}
-">
+"{% if widget.html_id != blank %} id="{{ widget.html_id }}"{% endif %}{% if widget.css_class != blank %} class="hero-widget {{ widget.css_class }}"{% endif %}>
   <div class="container py-5">
     <div class="row justify-content-center">
-      <div class="col-lg-8 text-{{ Target.alignment | default: 'center' }}">
+      <div class="col-lg-8 text-{{ widget.settings.alignment | default: 'center' }}">
         
-        {% if Target.headline != blank %}
+        {% if widget.settings.headline != blank %}
           <h1 class="display-4 fw-bold mb-3">
-            {{ Target.headline | escape }}
+            {{ widget.settings.headline | escape }}
           </h1>
         {% endif %}
         
-        {% if Target.subheadline != blank %}
+        {% if widget.settings.subheadline != blank %}
           <p class="lead mb-4">
-            {{ Target.subheadline | escape }}
+            {{ widget.settings.subheadline | escape }}
           </p>
         {% endif %}
         
-        {% if Target.buttonText != blank %}
-          <a href="{{ Target.buttonUrl | default: '#' }}" 
-             class="btn btn-{{ Target.buttonStyle | default: 'light' }} btn-lg"
-             {% if Target.buttonOpenNewTab %}target="_blank" rel="noopener"{% endif %}>
-            {{ Target.buttonText | escape }}
+        {% if widget.settings.buttonText != blank %}
+          <a href="{{ widget.settings.buttonUrl | default: '#' }}" 
+             class="btn btn-{{ widget.settings.buttonStyle | default: 'light' }} btn-lg">
+            {{ widget.settings.buttonText | escape }}
           </a>
         {% endif %}
         
@@ -930,14 +1012,32 @@ IEnumerable<NavigationMenuItem_RenderModel> MenuItems
 
 You can iterate nested `MenuItems` for dropdowns / sub-menus.
 
-### 10.5 `render_zone` (Site Pages only)
+### 10.5 `render_section("section_name")` (Site Pages only)
 
-Renders all widgets in a named zone:
+Renders all widgets in a named section:
 
 ```liquid
-{{ render_zone "hero" }}
-{{ render_zone "main" }}
-{{ render_zone "sidebar" }}
+{{ render_section("hero") }}
+{{ render_section("main") }}
+{{ render_section("sidebar") }}
+```
+
+Optional arguments:
+```liquid
+{{ render_section("hero", wrap=false) }}
+{{ render_section("features", row_class="row g-4", col_class="col-lg-4") }}
+```
+
+### 10.6 `get_section("section_name")` (Site Pages only)
+
+Returns raw widget data for custom rendering:
+
+```liquid
+{% for widget in get_section("sidebar") %}
+  <div class="my-custom-wrapper">
+    {{ widget.content }}
+  </div>
+{% endfor %}
 ```
 
 ---
@@ -1047,8 +1147,8 @@ When generating Raytha templates:
 3. Use `Target` appropriately:
    - List views: iterate `Target.Items`.
    - Detail views: treat `Target` as the item.
-   - Site Pages: use `render_zone` to output widget zones.
-   - Widget templates: access settings via `Target.<settingName>`.
+   - Site Pages: use `render_section()` to output widget sections.
+   - Widget templates: access settings via `widget.settings.<name>`.
 4. Prefer `.Value` for logic, `.Text` for display.
 5. Be mindful that function calls (`get_content_items`, etc.) hit the DB.
 6. Use OData (`filter`, `orderby`, `pageSize`, `pageNumber`, `search`) only on **public list view URLs**, not inside Liquid.
@@ -1059,6 +1159,7 @@ When generating Raytha templates:
     - Always check for blank values before rendering
     - Use the `default` filter for fallback values
     - Escape user content with `| escape`
+    - Access settings via `widget.settings.*`
 
 ---
 
@@ -1225,24 +1326,24 @@ This loses any active filters when user clicks pagination!
 
 ❌ **WRONG - Not handling empty values:**
 ```liquid
-<h1>{{ Target.headline }}</h1>  {% comment %} Renders empty tag if blank {% endcomment %}
+<h1>{{ widget.settings.headline }}</h1>  {% comment %} Renders empty tag if blank {% endcomment %}
 ```
 
 ✅ **CORRECT - Conditional rendering:**
 ```liquid
-{% if Target.headline != blank %}
-  <h1>{{ Target.headline }}</h1>
+{% if widget.settings.headline != blank %}
+  <h1>{{ widget.settings.headline }}</h1>
 {% endif %}
 ```
 
 ❌ **WRONG - Forgetting to escape user content:**
 ```liquid
-<h1>{{ Target.headline }}</h1>  {% comment %} XSS vulnerability {% endcomment %}
+<h1>{{ widget.settings.headline }}</h1>  {% comment %} XSS vulnerability {% endcomment %}
 ```
 
 ✅ **CORRECT - Escaped:**
 ```liquid
-<h1>{{ Target.headline | escape }}</h1>
+<h1>{{ widget.settings.headline | escape }}</h1>
 ```
 
 ❌ **WRONG - Hardcoded values instead of settings:**
@@ -1252,5 +1353,15 @@ This loses any active filters when user clicks pagination!
 
 ✅ **CORRECT - Uses setting with fallback:**
 ```liquid
-<section style="background-color: {{ Target.backgroundColor | default: '#0d6efd' }};">
+<section style="background-color: {{ widget.settings.backgroundColor | default: '#0d6efd' }};">
+```
+
+❌ **WRONG - Using old Target syntax in widget templates:**
+```liquid
+{{ Target.headline }}  {% comment %} Old syntax {% endcomment %}
+```
+
+✅ **CORRECT - Using widget.settings:**
+```liquid
+{{ widget.settings.headline }}  {% comment %} Current syntax {% endcomment %}
 ```
